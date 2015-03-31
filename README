@@ -1,0 +1,4 @@
+HumanRanker is a website that uses pairwise comparisons to reliably rank items.
+The system requires SciPy to be installed. Also, the system uses maximum
+likelihood to estimate parameters and compute 95% confidence intervals.
+

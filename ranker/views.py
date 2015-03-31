@@ -294,7 +294,7 @@ def update_model(project_id):
     ######## 2PL #############
     # BFGS
     result = fmin_bfgs(ll_2p, x0, fprime=ll_2p_grad, 
-                       args=(tuple(jids), tuple(ids)), disp=True)
+                       args=(tuple(jids), tuple(ids)), disp=False)
 
     # Truncated Newton
     #bounds = [(-12,12) for v in ids] + [(0,12) for v in jids]
@@ -302,7 +302,7 @@ def update_model(project_id):
     #                  args=(tuple(jids), tuple(ids)), bounds=bounds, disp=True)[0]
     ##########################
 
-    print(result)
+    #print(result)
 
     for idx, item in enumerate(items):
         item.mean = result[idx]
@@ -332,8 +332,6 @@ def update_model(project_id):
     for i,v in enumerate(d2ll):
         d2ll[i] += len(ids) / (item_std * item_std) + len(jids) / (judge_std * judge_std)
 
-    print(d2ll)
-    print(np.sqrt(d2ll))
     std = 1.0 / np.sqrt(d2ll)
 
     for idx, item in enumerate(items):

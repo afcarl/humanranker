@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load tz %}
+
+{% block content %}
+    <h2 class="text-center">{{ project.name }}</h2>
+    <h4 class="text-center">Prompt: {{ project.prompt }}</h4>
+    <h4 class="text-center"># of ratings collected: {{ project.ratings.all | length }}</h4>
+    <p class="text-center"> <div class="text-center">
+        <a class="btn btn-primary" href="{% url 'dashboard' %}"
+            role="button">Back</a>
+        <a class="btn btn-primary" href="{% url 'rate' project.id %}"
+            role="button">Live Rating Link</a>
+    </div> </p>
+
+    <table class="table table-striped table-bordered bottom-table">
+        <thead>
+            <tr>
+                <th class="text-center">Items</th>
+                <th class="text-center">Images</th>
+                <th class="text-center">Parameter Distribution</th>
+                <th class="text-center">Parameter Values</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in project.items.all %}
+            <tr>
+                <td style="vertical-align: middle"> {{ item.name }} </a></td>
+            <td style="vertical-align: middle" class="text-center">
+                <img style="width:100px;" src="{{ item.image.url }}"/>
+            </td>
+            <td style="vertical-align: middle; padding-top:30px; margin:0px;">
+                <div class="progress">
+                    <div class="progress-bar progress-bar-warning"
+                        style="width: {{ item.lower_percent }}%">
+                        <span class="sr-only"></span>
+                    </div>
+                    <div class="progress-bar progress-bar-success" style="width: {{ item.percent }}%">
+                        <span class="sr-only"></span>
+                    </div>
+                    <div class="progress-bar progress-bar-warning" style="width: {{ item.upper_percent }}%">
+                        <span class="sr-only"></span>
+                    </div>
+                </div>
+            </td>
+            <td style="vertical-align: middle"> {{ item.mean|floatformat:"3" }}
+                +/- {{ item.conf|floatformat:"3" }} {{ item.lower_value }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}
+

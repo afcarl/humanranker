@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div style="padding: 20px;" class="text-center">
+        <h3>Prompt:</h3>
+        <h4>{{ project.prompt }}</h4>
+        <h5>(Answer question at bottom)</h5>
+    </div>
+
+    <div style="display:block; width: 100%; clear: both;">
+        <div style="float:left; width: 49%; text-align:center; border-style:solid; border-width:3px;">
+            <h5>Item 1</h5>
+            <div id="image1">
+                <img style="width:100%;" src="{{ item1.image.url }}"/>
+            </div>
+        </div>
+
+        <div style="float:right; width: 49%; text-align:center; border-style:solid; border-width:3px;">
+            <h5>Item 2</h5>
+            <div id="image2">
+                <img style="width:100%;" src="{{ item2.image.url }}"/>
+            </div>
+        </div>
+    </div>
+
+    <div style="display:block; width:100%; clear: both; padding: 20px;">
+        <p style="margin-left: auto; margin-right: auto; width:
+        400px" class="text-center"><strong>Prompt:</strong></br> {{ project.prompt }}</p>
+        <div style="margin-left:auto; margin-right:auto; width: 165px;">
+            <fieldset><input id="left" name="Rating" type="radio" value="1"
+                />&nbsp;The <strong>left</strong> item (Item 1)<br />
+            <input name="Rating" id="right" type="radio" value="0"
+            />&nbsp;The <strong>right</strong> item (Item 2)<br />
+        </div>
+    </div>
+
+    <div style="text-align:center; width: 100%; padding: 10px;">
+        <button id="submit">Submit</button>
+        <br/><br/>
+    </div>
+    
+
+<script>
+    $(function(){
+        $('#submit').click(function(){
+            if ($('#left').is(":checked")){
+                window.location = "{% url 'vote' project.id item1.id item2.id 1 %}"
+            }
+            else if ($('#right').is(":checked")){
+                window.location = "{% url 'vote' project.id item1.id item2.id 0 %}"
+            }
+        });
+    });
+</script>
+    
+
+{% endblock %}
+

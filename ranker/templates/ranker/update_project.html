@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="jumbotron">
+    <div class="container login">
+        <div class="form">
+            <h2>Update Project</h2>
+            {% if form.errors %}
+            <div class="alert alert-danger" role="alert"> 
+                <span class="glyphicon glyphicon-exclamation-sign"
+                    aria-hidden="true">
+                </span> 
+                <span class="sr-only">Error:</span> 
+                Error updating the project. Please try again.
+            </div>
+            {% endif %}
+
+            <form enctype="multipart/form-data" method="post" action="{% url 'update_project' project_id %}">
+            {% csrf_token %}
+            {{ form.as_p }}
+            
+            <a class="btn btn-primary" href="{% url 'dashboard' %}"
+                role="button">Back</a>
+            <input type="submit" value="Update Project" class="btn btn-success" />
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

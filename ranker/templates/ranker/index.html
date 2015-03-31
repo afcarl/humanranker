@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+
+{% block content %}
+
+<!-- Main jumbotron for a primary marketing message or call to action -->
+<div class="jumbotron graph">
+  <div class="container">
+      <h1>Simple Subjective Measurement with Pairwise Comparisons</h1>
+    <p>HumanRanker uses simple pairwise comparisons and Item-Response Theory to
+    easily and reliably assess subjective measures.
+    </p> 
+    <p><a class="btn btn-primary btn-lg" href="{% url "register" %}"
+    role="button">Create Account &raquo;</a></p>
+  </div>
+</div>
+
+<!---
+<div class="container">
+  <div class="row">
+    <div class="col-md-4">
+      <h2>Personalized Workouts</h2>
+      <p>DataFit analyzes your current fitness level and provides
+      personalized workout plans designed to target <em>your</em> weaknesses and achieve
+      your goals.</p>
+      <p><a class="btn btn-default" href="#" role="button">View details &raquo;</a></p>
+   </div>
+    <div class="col-md-4">
+      <h2>Individualized Coaching</h2>
+      <p>Using state of the art computational modeling DataFit identifies what
+      exercises you should be doing and how much weight you should be lifting
+      to optimize your results.</p>
+      <p><a class="btn btn-default" href="#" role="button">View details &raquo;</a></p>
+    </div>
+    <div class="col-md-4">
+      <h2>Track Your Results</h2>
+      <p>DataFit makes it easy to track the strength of individual muscles in
+      your body after each workout. It also provides advanced visualizations
+      for making it easy to see your progress over time.</p>
+      <p><a class="btn btn-default" href="#" role="button">View details &raquo;</a></p>
+    </div>
+  </div>
+
+  <hr>
+--->
+
+  <footer>
+    <p>&copy; Christopher J. MacLellan 2015</p>
+  </footer>
+</div> <!-- /container -->
+
+{% endblock %}
+

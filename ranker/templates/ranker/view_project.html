@@ -2,20 +2,29 @@
 {% load tz %}
 
 {% block content %}
-    <h2 class="text-center">{{ project.name }}</h2>
-    <h4 class="text-center">Prompt: {{ project.prompt }}</h4>
-    <h4 class="text-center"># of ratings collected: {{ project.ratings.all | length }}</h4>
-    <p class="text-center"> <div class="text-center">
-        <a class="btn btn-primary" href="{% url 'dashboard' %}"
-            role="button">Back</a>
-        <a class="btn btn-primary" href="{% url 'rate' project.id %}"
-            role="button">Live Rating Link</a>
-        <a class="btn btn-primary" href="{% url 'export_rankings' project.id %}"
-            role="button">Export Estimates</a>
-        <a class="btn btn-primary" href="{% url 'export_ratings' project.id %}"
-            role="button">Export Ratings</a>
-    </div> </p>
+    <p>
+        <div>
+            <a class="btn btn-primary" href="{% url 'dashboard' %}"
+                role="button">Back</a>
+            <a class="btn btn-primary" href="{% url 'rate' project.id %}"
+                role="button">Live Rating Link</a>
+            <a class="btn btn-primary" href="{% url 'export_rankings' project.id %}"
+                role="button">Export Estimates</a>
+            <a class="btn btn-primary" href="{% url 'export_ratings' project.id %}"
+                role="button">Export Ratings</a>
+        </div> 
+    </p>
 
+    <h3>Project Overview</h3>
+    <table class="table table-striped table-bordered bottom-table">
+        <tbody>
+            <tr><td>Project Name</td><td>{{ project.name }}</td></tr>
+            <tr><td>Prompt</td><td>{{ project.prompt }}</td></tr>
+            <tr><td># of ratings collected</td><td>{{ project.ratings.all | length }}</td></tr>
+        </tbody>
+    </table>
+
+    <h3>Item Estimates</h3>
     <table class="table table-striped table-bordered bottom-table">
         <thead>
             <tr>
@@ -49,6 +58,24 @@
             </td>
             <td style="vertical-align: middle"> {{ item.mean|floatformat:"3" }}
                 +/- {{ item.conf|floatformat:"3" }} {{ item.lower_value }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h3>Judge Discrimination Estimates</h3>
+    <table class="table table-striped table-bordered bottom-table">
+        <thead>
+            <tr>
+                <th class="text-center">Judge ID</th>
+                <th class="text-center">Discrimination</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for judge in judges %}
+            <tr>
+                <td style="vertical-align: middle"> {{ judge.id }} </a></td>
+                <td style="vertical-align: middle">{{ judge.discrimination|floatformat:"3" }}</td>
             </tr>
             {% endfor %}
         </tbody>

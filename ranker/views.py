@@ -83,11 +83,17 @@ def create_project(request):
 @login_required
 def view_project(request, project_id):
     project = Project.objects.get(id=project_id)
+
+    # todo need to ensure the judge parameters are right; particularly if they
+    # vote on multiple projects
+    judges = Judge.objects.filter(ratings__project=project).distinct()
+
     #update_model(project.id)
     #min_val = min([item.mean - item.conf for item in Item.objects.filter(project=project)])
     #max_val = max([item.mean + item.conf for item in Item.objects.filter(project=project)])
     template = loader.get_template('ranker/view_project.html')
-    context = RequestContext(request, {'project': project})
+    context = RequestContext(request, {'project': project,
+                                       'judges': judges})
                                       # 'min_val': min_val,
                                       # 'max_val': max_val})
     return HttpResponse(template.render(context))

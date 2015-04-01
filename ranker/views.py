@@ -23,7 +23,7 @@ import csv
 item_mean = 0.0
 item_std = 10.0
 judge_mean = 1.0
-judge_std = 10.0
+judge_std = 10.0 
 
 def register(request):
     if request.method == 'POST':
@@ -84,6 +84,8 @@ def create_project(request):
 def view_project(request, project_id):
     project = Project.objects.get(id=project_id)
 
+    update_model(project_id)
+
     # todo need to ensure the judge parameters are right; particularly if they
     # vote on multiple projects
     judges = Judge.objects.filter(ratings__project=project).distinct()
@@ -137,6 +139,7 @@ def ll_2p(x, *args):
     judge_reg = (-1.0 / (2 * judge_std * judge_std)) * judge_reg
 
     return -1.0 * (ll + item_reg + judge_reg)
+    #return -1.0 * (ll + item_reg)
 
 def ll_2p_grad(x, *args):
     ids = {i:idx for idx, i in enumerate(args[1])}
@@ -155,6 +158,7 @@ def ll_2p_grad(x, *args):
         g = y - p 
         grad[ids[r.left.id]] += d * g
         grad[ids[r.right.id]] += -1 * d * g
+        grad[jids[r.judge.id]] += (left - right) * g
 
     # Normal prior on means
     item_reg = np.array([0.0 for v in x])
@@ -171,8 +175,8 @@ def ll_2p_grad(x, *args):
     return -1 * (grad + item_reg + judge_reg)
         
 def ll_1p(x, *args):
-    ids = {i:idx for idx, i in enumerate(args)}
-    ratings = Rating.objects.filter(Q(left__in=ids)|Q(right__in=ids))
+    ids = {i:idx for idx, i in enumerate(args[0])}
+    ratings = args[1]
 
     ll = 0.0
     for r in ratings:
@@ -193,8 +197,8 @@ def ll_1p(x, *args):
     return -1.0 * (ll + item_reg)
 
 def ll_1p_grad(x, *args):
-    ids = {i:idx for idx, i in enumerate(args)}
-    ratings = Rating.objects.filter(Q(left__in=ids)|Q(right__in=ids))
+    ids = {i:idx for idx, i in enumerate(args[0])}
+    ratings = args[1]
 
     grad = np.array([0.0 for v in x])
     for r in ratings:
@@ -286,30 +290,32 @@ def update_model(project_id):
     judges = Judge.objects.filter(ratings__project=project).order_by('id').distinct()
     jids = [judge.id for judge in judges]
     ratings = Rating.objects.filter(Q(left__in=ids)|Q(right__in=ids)).distinct()
+    #x0 = [item.mean for item in items] + [judge.discrimination for judge in judges]
 
+    ######## 2PL #############
     x0 = [item.mean for item in items] + [judge.discrimination for judge in judges]
-    #x0 = [0.0 for item in items] + [1.0 for judge in judges]
+    # BFGS
+    result = fmin_bfgs(ll_2p, x0, fprime=ll_2p_grad, 
+                       args=(tuple(jids), tuple(ids), ratings), disp=False)
+
+    # Truncated Newton
+    #bounds = [('-inf','inf') for v in ids] + [(0.0001,'inf') for v in jids]
+    #result = fmin_tnc(ll_2p, x0, 
+    #                  #approx_grad=True,
+    #                  fprime=ll_2p_grad, 
+    #                  args=(tuple(jids), tuple(ids), ratings), bounds=bounds, disp=True)[0]
+    ##########################
 
     ######## 1PL #############
-    # BFGS
-    #result = fmin_bfgs(ll_1p, x0, fprime=ll_1p_grad, args=tuple(ids),
+    #x0 = [item.mean for item in items] 
+    ## BFGS
+    #result = fmin_bfgs(ll_1p, x0, fprime=ll_1p_grad, args=(tuple(ids), ratings),
     #                   disp=True)
 
     # Truncated Newton
     #bounds = [(-12,12) for v in x0]
     #result = fmin_tnc(ll_1p, x0, fprime=ll_1p_grad, args=tuple(ids), bounds=bounds,
     #                   disp=True)[0]
-    ##########################
-
-    ######## 2PL #############
-    # BFGS
-    result = fmin_bfgs(ll_2p, x0, fprime=ll_2p_grad, 
-                       args=(tuple(jids), tuple(ids), ratings), disp=False)
-
-    # Truncated Newton
-    #bounds = [(-12,12) for v in ids] + [(0,12) for v in jids]
-    #result = fmin_tnc(ll_2p, x0, fprime=ll_2p_grad, 
-    #                  args=(tuple(jids), tuple(ids)), bounds=bounds, disp=True)[0]
     ##########################
 
     #print(result)
@@ -321,17 +327,25 @@ def update_model(project_id):
         item.mean = result[ids[item.id]]
         item.save()
 
-    for judge in judges:
-        judge.discrimination = result[jids[judge.id]]
-        judge.save()
+    if len(result) > len(items):
+        for judge in judges:
+            judge.discrimination = result[jids[judge.id]]
+            judge.save()
+    else:
+        for judge in judges:
+            judge.discrimination = 1.0
+            judge.save()
 
     # compute the stds
     d2ll = np.array([0.0 for item in items])
 
     for r in ratings:
+        if len(result) > len(items):
+            d = r.judge.discrimination
+        else:
+            d = 1.0
         left = r.left.mean
         right = r.right.mean
-        d = r.judge.discrimination
         p = 1.0 / (1.0 + expz(-1 * d * (left-right)))
         q = 1 - p
         d2ll[ids[r.left.id]] += d * d * p * q
@@ -339,13 +353,14 @@ def update_model(project_id):
 
     # regularization terms
     for i,v in enumerate(d2ll):
-        d2ll[i] += len(ids) / (item_std * item_std) + len(jids) / (judge_std * judge_std)
+        d2ll[i] += len(ids) / (item_std * item_std) 
+        
+        if len(result) > len(items):
+            d2ll[i] += len(jids) / (judge_std * judge_std)
 
-    print(d2ll)
     std = 1.0 / np.sqrt(d2ll)
 
     for item in items:
-        print(std)
         item.conf = 1.96 * std[ids[item.id]]
         item.save()
 

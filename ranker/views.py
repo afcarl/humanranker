@@ -293,7 +293,7 @@ def update_model(project_id):
     #x0 = [item.mean for item in items] + [judge.discrimination for judge in judges]
 
     ######## 2PL #############
-    x0 = [item.mean for item in items] + [1.0 for judge in judges]
+    x0 = [item.mean for item in items] + [judge.discrimination for judge in judges]
     #x0 = [0.0 for item in items] + [1.0 for judge in judges]
     # BFGS
     #result = fmin_bfgs(ll_2p, x0, fprime=ll_2p_grad, 

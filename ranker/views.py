@@ -295,15 +295,15 @@ def update_model(project_id):
     ######## 2PL #############
     x0 = [item.mean for item in items] + [judge.discrimination for judge in judges]
     # BFGS
-    result = fmin_bfgs(ll_2p, x0, fprime=ll_2p_grad, 
-                       args=(tuple(jids), tuple(ids), ratings), disp=False)
+    #result = fmin_bfgs(ll_2p, x0, fprime=ll_2p_grad, 
+    #                   args=(tuple(jids), tuple(ids), ratings), disp=False)
 
     # Truncated Newton
-    #bounds = [('-inf','inf') for v in ids] + [(0.0001,'inf') for v in jids]
-    #result = fmin_tnc(ll_2p, x0, 
-    #                  #approx_grad=True,
-    #                  fprime=ll_2p_grad, 
-    #                  args=(tuple(jids), tuple(ids), ratings), bounds=bounds, disp=True)[0]
+    bounds = [('-inf','inf') for v in ids] + [(0.0001,'inf') for v in jids]
+    result = fmin_tnc(ll_2p, x0, 
+                      #approx_grad=True,
+                      fprime=ll_2p_grad, 
+                      args=(tuple(jids), tuple(ids), ratings), bounds=bounds, disp=True)[0]
     ##########################
 
     ######## 1PL #############

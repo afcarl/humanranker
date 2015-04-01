@@ -15,6 +15,9 @@ class Judge(models.Model):
     ip_address = models.GenericIPAddressField(unique=True)
     discrimination = models.FloatField(default=1.0)
 
+    class Meta:
+        ordering = ['-discrimination']
+
 class Project(models.Model):
     name = models.CharField(max_length=200)
     prompt = models.TextField()

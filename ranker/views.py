@@ -21,9 +21,9 @@ import csv
 
 # regularization parameters
 item_mean = 0.0
-item_std = 10.0
-judge_mean = 1.0
-judge_std = 10.0 
+item_std = 1.0
+judge_mean = 0.0
+judge_std = 1.0 
 
 def register(request):
     if request.method == 'POST':
@@ -122,8 +122,14 @@ def ll_2p(x, *args):
         y = r.value
         z = d * (left - right)
         ez = expz(z)
-        ll += y * z - log(1 + ez)
+        #ll += y * z - log(1 + ez)
+        p = 1 / (1 + expz(-1 * z))
+        ll += y * log(p) + (1 - y) * log(1 - p)
 
+    #print(ll)
+    #return -1.0 * ll
+
+    # Regularization
     # Normal prior on means
     item_reg = 0.0
     for i in ids:
@@ -160,6 +166,9 @@ def ll_2p_grad(x, *args):
         grad[ids[r.right.id]] += -1 * d * g
         grad[jids[r.judge.id]] += (left - right) * g
 
+    #return -1 * grad
+
+    # Regularization
     # Normal prior on means
     item_reg = np.array([0.0 for v in x])
     for i in ids:
@@ -187,6 +196,8 @@ def ll_1p(x, *args):
         ez = expz(z)
         ll += y * z - log(1 + ez)
 
+    #return -1.0 * ll
+
     # Normal prior on means
     item_reg = 0.0
     for i in ids:
@@ -210,6 +221,8 @@ def ll_1p_grad(x, *args):
         g = y - p 
         grad[ids[r.left.id]] += g
         grad[ids[r.right.id]] += -1 * g
+
+    #return -1.0 * grad
 
     # Normal prior on means
     item_reg = np.array([0.0 for v in x])
@@ -292,9 +305,16 @@ def update_model(project_id):
     ratings = Rating.objects.filter(Q(left__in=ids)|Q(right__in=ids)).distinct()
     #x0 = [item.mean for item in items] + [judge.discrimination for judge in judges]
 
+
     ######## 2PL #############
     x0 = [item.mean for item in items] + [judge.discrimination for judge in judges]
+    x0 = [2 * (random.random() - 0.5) for item in items] + [3 * random.random() for judge in judges]
     #x0 = [0.0 for item in items] + [1.0 for judge in judges]
+
+    # Check the gradient calculation
+    #print(check_grad(ll_2p, ll_2p_grad, x0, tuple(jids), tuple(ids),
+    #                                         ratings))
+
     # BFGS
     #result = fmin_bfgs(ll_2p, x0, fprime=ll_2p_grad, 
     #                   args=(tuple(jids), tuple(ids), ratings), disp=False)
@@ -302,20 +322,24 @@ def update_model(project_id):
     # Truncated Newton
     bounds = [('-inf','inf') for v in ids] + [(0.001,'inf') for v in jids]
     result = fmin_tnc(ll_2p, x0, 
+                      #approx_grad=True,
                       fprime=ll_2p_grad, 
                       args=(tuple(jids), tuple(ids), ratings), bounds=bounds,
                       disp=False)[0]
     ##########################
+    #print(result)
 
     ######## 1PL #############
     #x0 = [item.mean for item in items] 
+    #x0 = [random.random() - 0.5 for item in items] 
+
     ## BFGS
     #result = fmin_bfgs(ll_1p, x0, fprime=ll_1p_grad, args=(tuple(ids), ratings),
     #                   disp=True)
 
     # Truncated Newton
-    #bounds = [(-12,12) for v in x0]
-    #result = fmin_tnc(ll_1p, x0, fprime=ll_1p_grad, args=tuple(ids), bounds=bounds,
+    #bounds = [('-inf','inf') for v in x0]
+    #result = fmin_tnc(ll_1p, x0, fprime=ll_1p_grad, args=(tuple(ids), ratings), bounds=bounds,
     #                   disp=True)[0]
     ##########################
 
@@ -326,6 +350,7 @@ def update_model(project_id):
 
     for item in items:
         item.mean = result[ids[item.id]]
+        item.conf = 'inf'
         item.save()
 
     if len(result) > len(items):
@@ -341,10 +366,7 @@ def update_model(project_id):
     d2ll = np.array([0.0 for item in items])
 
     for r in ratings:
-        if len(result) > len(items):
-            d = r.judge.discrimination
-        else:
-            d = 1.0
+        d = r.judge.discrimination
         left = r.left.mean
         right = r.right.mean
         p = 1.0 / (1.0 + expz(-1 * d * (left-right)))
@@ -353,13 +375,16 @@ def update_model(project_id):
         d2ll[ids[r.right.id]] += d * d * p * q
 
     # regularization terms
-    for i,v in enumerate(d2ll):
-        d2ll[i] += len(ids) / (item_std * item_std) 
-        
-        if len(result) > len(items):
-            d2ll[i] += len(jids) / (judge_std * judge_std)
+    #for i,v in enumerate(d2ll):
+    #    d2ll[i] -= len(ids) / (item_std * item_std) 
+    #    
+    #    if len(result) > len(items):
+    #        d2ll[i] -= len(jids) / (judge_std * judge_std)
+    ## if the prior is really strong, then weird things happen here.
+    #d2ll = np.maximum([0.01 for v in d2ll], d2ll)
 
     std = 1.0 / np.sqrt(d2ll)
+    #print(std)
 
     for item in items:
         item.conf = 1.96 * std[ids[item.id]]

@@ -84,8 +84,6 @@ def create_project(request):
 def view_project(request, project_id):
     project = Project.objects.get(id=project_id)
 
-    update_model(project_id)
-
     # todo need to ensure the judge parameters are right; particularly if they
     # vote on multiple projects
     judges = Judge.objects.filter(ratings__project=project).distinct()
@@ -341,11 +339,13 @@ def update_model(project_id):
 
     # regularization terms
     for i,v in enumerate(d2ll):
-        d2ll[i] -= len(ids) / (item_std * item_std) + len(jids) / (judge_std * judge_std)
+        d2ll[i] += len(ids) / (item_std * item_std) + len(jids) / (judge_std * judge_std)
 
+    print(d2ll)
     std = 1.0 / np.sqrt(d2ll)
 
     for item in items:
+        print(std)
         item.conf = 1.96 * std[ids[item.id]]
         item.save()
 

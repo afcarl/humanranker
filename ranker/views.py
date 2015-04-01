@@ -84,6 +84,8 @@ def create_project(request):
 def view_project(request, project_id):
     project = Project.objects.get(id=project_id)
 
+    update_model(project_id)
+
     # todo need to ensure the judge parameters are right; particularly if they
     # vote on multiple projects
     judges = Judge.objects.filter(ratings__project=project).distinct()
@@ -321,10 +323,9 @@ def update_model(project_id):
         item.mean = result[ids[item.id]]
         item.save()
 
-    if len(result) > len(ids):
-        for judge in judges:
-            judge.discrimination = result[jids[judge.id]]
-            judge.save()
+    for judge in judges:
+        judge.discrimination = result[jids[judge.id]]
+        judge.save()
 
     # compute the stds
     d2ll = np.array([0.0 for item in items])

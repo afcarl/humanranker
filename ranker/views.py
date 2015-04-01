@@ -17,6 +17,7 @@ from django.db.models import Q
 from math import exp, log
 import numpy as np
 import random
+import csv
 
 # regularization parameters
 item_mean = 0.0
@@ -333,7 +334,7 @@ def update_model(project_id):
 
     # regularization terms
     for i,v in enumerate(d2ll):
-        d2ll[i] += len(ids) / (item_std * item_std) + len(jids) / (judge_std * judge_std)
+        d2ll[i] -= len(ids) / (item_std * item_std) + len(jids) / (judge_std * judge_std)
 
     std = 1.0 / np.sqrt(d2ll)
 
@@ -439,10 +440,34 @@ def delete_project(request, project_id):
     return HttpResponseRedirect(reverse('dashboard'))
     
 @login_required
-def export_rankings(request):
-    pass
+def export_rankings(request, project_id):
+    project = Project.objects.get(id=project_id)
+    items = Item.objects.filter(project=project).distinct()
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="measure-export-' + str(project.id) + '.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(['id', 'name', 'parameter estimate', '95% confidence interval', 'prompt'])
+    for item in items:
+        writer.writerow([item.id, item.name, item.mean, item.conf, '"' +
+                         project.prompt + '"'])
+
+    return response
 
 @login_required
-def export_ratings(request):
-    pass
+def export_ratings(request, project_id):
+    project = Project.objects.get(id=project_id)
+    ratings = Rating.objects.filter(project=project).distinct()
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="measure-export-' + str(project.id) + '.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(['rating_id', 'left_item_id', 'right_item_id',
+                     'rating_value', 'judge_id'])
+    for r in ratings:
+        writer.writerow([r.id, r.left.id, r.right.id, r.value, r.judge.id])
+
+    return response
 

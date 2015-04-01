@@ -10,6 +10,10 @@
             role="button">Back</a>
         <a class="btn btn-primary" href="{% url 'rate' project.id %}"
             role="button">Live Rating Link</a>
+        <a class="btn btn-primary" href="{% url 'export_rankings' project.id %}"
+            role="button">Export Estimates</a>
+        <a class="btn btn-primary" href="{% url 'export_ratings' project.id %}"
+            role="button">Export Ratings</a>
     </div> </p>
 
     <table class="table table-striped table-bordered bottom-table">

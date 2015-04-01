@@ -18,5 +18,9 @@ urlpatterns = patterns('',
         name='update_project'),
     url(r'^delete_project/(?P<project_id>\d+)$', views.delete_project,
         name='delete_project'),
+    url(r'^export_rankings/(?P<project_id>\d+)$', views.export_rankings,
+        name='export_rankings'),
+    url(r'^export_ratings/(?P<project_id>\d+)$', views.export_ratings,
+        name='export_ratings'),
 )
 

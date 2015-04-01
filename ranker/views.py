@@ -308,7 +308,7 @@ def update_model(project_id):
 
     ######## 2PL #############
     x0 = [item.mean for item in items] + [judge.discrimination for judge in judges]
-    x0 = [2 * (random.random() - 0.5) for item in items] + [3 * random.random() for judge in judges]
+    #x0 = [2 * (random.random() - 0.5) for item in items] + [3 * random.random() for judge in judges]
     #x0 = [0.0 for item in items] + [1.0 for judge in judges]
 
     # Check the gradient calculation

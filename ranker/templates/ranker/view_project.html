@@ -122,15 +122,17 @@
             //console.log(max);
             //console.log(min);
 
-            $.each(means, function(id, value){
-                lower_fill = 100 * (((means[id] - confs[id]) - min) / range);
-                upper_fill = 100 * ((max - (means[id] + confs[id])) / range);
-                conf = (100 * ((confs[id]) / range)) - 0.5;
-                $('#' + id + '-lower-fill').css('width', lower_fill + '%');
-                $('#' + id + '-lower-conf').css('width', conf + "%");
-                $('#' + id + '-upper-conf').css('width', conf + "%");
-                $('#' + id + '-upper-fill').css('width', upper_fill + '%');
-            });
+            if (range > 0){
+                $.each(means, function(id, value){
+                    lower_fill = 100 * (((means[id] - confs[id]) - min) / range);
+                    upper_fill = 100 * ((max - (means[id] + confs[id])) / range);
+                    conf = (100 * ((confs[id]) / range)) - 0.5;
+                    $('#' + id + '-lower-fill').css('width', lower_fill + '%');
+                    $('#' + id + '-lower-conf').css('width', conf + "%");
+                    $('#' + id + '-upper-conf').css('width', conf + "%");
+                    $('#' + id + '-upper-fill').css('width', upper_fill + '%');
+                });
+            }
         });
     </script>
 {% endblock %}

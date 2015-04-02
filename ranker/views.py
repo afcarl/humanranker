@@ -23,7 +23,7 @@ import csv
 item_mean = 0.0
 item_std = 1.0
 judge_mean = 1.0
-judge_std = 1.0 
+judge_std = 1.0
 
 def register(request):
     if request.method == 'POST':
@@ -375,13 +375,12 @@ def update_model(project_id):
         d2ll[ids[r.right.id]] += d * d * p * q
 
     # regularization terms
-    #for i,v in enumerate(d2ll):
-    #    d2ll[i] -= len(ids) / (item_std * item_std) 
-    #    
-    #    if len(result) > len(items):
-    #        d2ll[i] -= len(jids) / (judge_std * judge_std)
-    ## if the prior is really strong, then weird things happen here.
-    #d2ll = np.maximum([0.01 for v in d2ll], d2ll)
+    for i,v in enumerate(d2ll):
+        d2ll[i] += len(ids) / (item_std * item_std) 
+        
+        if len(result) > len(items):
+            d2ll[i] += len(jids) / (judge_std * judge_std)
+    #print(d2ll)
 
     std = 1.0 / np.sqrt(d2ll)
     #print(std)

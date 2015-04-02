@@ -395,16 +395,22 @@ def rate(request, project_id):
 
     item1 = None
     item2 = None
-    diff = float('inf')
+    diff = float('-inf')
     i1 = None
     i2 = None
     for item in Item.objects.filter(project=project).order_by('mean').distinct():
         i1 = i2
         i2 = item
-        if i1 and i2 and abs(i1.mean - i2.mean) <= diff:
+
+        if not i1 or not i2:
+            continue
+
+        lower = max(i1.mean - i1.conf, i2.mean - i2.conf)
+        upper = min(i1.mean + i1.conf, i2.mean + i2.conf)
+        if upper - lower > diff:
             item1 = i1
             item2 = i2
-            diff = abs(i1.mean - i2.mean)
+            diff = upper - lower
 
     if random.random() > 0.5:
         temp = item1

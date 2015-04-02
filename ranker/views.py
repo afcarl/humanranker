@@ -22,7 +22,7 @@ import csv
 # regularization parameters
 item_mean = 0.0
 item_std = 1.0
-judge_mean = 0.0
+judge_mean = 1.0
 judge_std = 1.0 
 
 def register(request):

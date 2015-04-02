@@ -121,7 +121,7 @@ def ll_2p(x, *args):
 
         y = r.value
         z = d * (left - right)
-        ez = expz(z)
+        #ez = expz(z)
         #ll += y * z - log(1 + ez)
         p = 1 / (1 + expz(-1 * z))
         ll += y * log(p) + (1 - y) * log(1 - p)

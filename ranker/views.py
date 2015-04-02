@@ -445,7 +445,8 @@ def vote(request, project_id, item1_id, item2_id, value):
     if not ip:
         ip = "127.0.0.1"
 
-    judge, new = Judge.objects.get_or_create(ip_address=ip)
+    project = Project.objects.get(id=project_id)
+    judge, new = Judge.objects.get_or_create(ip_address=ip,project=project)
 
     item1 = Item.objects.get(id=item1_id)
     item2 = Item.objects.get(id=item2_id)
@@ -491,6 +492,16 @@ def delete_project(request, project_id):
     project.delete()
     messages.success(request, "Project Deleted!")
     return HttpResponseRedirect(reverse('dashboard'))
+
+@login_required
+def delete_item(request, item_id):
+    item = Item.objects.get(pk=item_id)
+    project_id = item.project.id
+    item.delete()
+    messages.success(request, "Item Deleted!")
+    return HttpResponseRedirect(reverse('view_project',
+                                        kwargs={'project_id':
+                                               project_id}))
     
 @login_required
 def export_rankings(request, project_id):

@@ -11,13 +11,6 @@ from django.contrib.auth.models import User
 #def create_profile(sender, instance, **kwargs):
 #    profile, new = UserProfile.objects.get_or_create(user=instance)
 
-class Judge(models.Model):
-    ip_address = models.GenericIPAddressField(unique=True)
-    discrimination = models.FloatField(default=1.0)
-
-    class Meta:
-        ordering = ['-discrimination']
-
 class Project(models.Model):
     name = models.CharField(max_length=200)
     prompt = models.TextField()
@@ -27,6 +20,15 @@ class Project(models.Model):
 
     def __str__(self):
         return str(self.name)
+
+class Judge(models.Model):
+    ip_address = models.GenericIPAddressField()
+    project = models.ForeignKey(Project)
+    discrimination = models.FloatField(default=1.0)
+
+    class Meta:
+        ordering = ['-discrimination']
+        unique_together = ('ip_address', 'project',)
 
 class Item(models.Model):
     def fancy_path(self, filename):

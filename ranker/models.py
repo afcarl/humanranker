@@ -36,7 +36,7 @@ class Item(models.Model):
     image = models.ImageField(upload_to=fancy_path)
     mean = models.FloatField(default=0.0)
     #std = models.FloatField(default=0.0)
-    conf = models.FloatField(default=0.0)
+    conf = models.FloatField(default=10000)
     project = models.ForeignKey(Project, related_name="items")
     added = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)

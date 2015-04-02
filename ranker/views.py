@@ -350,7 +350,7 @@ def update_model(project_id):
 
     for item in items:
         item.mean = result[ids[item.id]]
-        item.conf = 'inf'
+        item.conf = 0.0
         item.save()
 
     if len(result) > len(items):

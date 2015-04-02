@@ -35,7 +35,6 @@ class Item(models.Model):
     name = models.CharField(max_length=200)
     image = models.ImageField(upload_to=fancy_path)
     mean = models.FloatField(default=0.0)
-    #std = models.FloatField(default=0.0)
     conf = models.FloatField(default=10000)
     project = models.ForeignKey(Project, related_name="items")
     added = models.DateTimeField(auto_now_add=True)
@@ -43,27 +42,6 @@ class Item(models.Model):
 
     def __str__(self):
         return str((self.id, self.name, self.mean))
-
-    def lower_percent(self):
-        min_val = min([item.mean - item.conf for item in Item.objects.filter(project=self.project)])
-        max_val = max([item.mean + item.conf for item in Item.objects.filter(project=self.project)])
-        if (max_val - min_val) == 0:
-            return 0.0
-        return 100 * ((self.mean - self.conf) - min_val) / (max_val - min_val)
-
-    def percent(self):
-        min_val = min([item.mean - item.conf for item in Item.objects.filter(project=self.project)])
-        max_val = max([item.mean + item.conf for item in Item.objects.filter(project=self.project)])
-        if (max_val - min_val) == 0:
-            return 0.0
-        return 100 * (2 * self.conf) / (max_val - min_val)
-
-    def upper_percent(self):
-        min_val = min([item.mean - item.conf for item in Item.objects.filter(project=self.project)])
-        max_val = max([item.mean + item.conf for item in Item.objects.filter(project=self.project)])
-        if (max_val - min_val) == 0:
-            return 0.0
-        return 100 * (max_val - (self.mean + self.conf)) / (max_val - min_val)
 
     class Meta:
         ordering = ['-mean']

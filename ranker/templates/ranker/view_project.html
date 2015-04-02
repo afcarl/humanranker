@@ -45,13 +45,27 @@
             <td style="vertical-align: middle; padding-top:30px; margin:0px;">
                 <div class="progress">
                     <div class="progress-bar progress-bar-warning"
-                        style="width: {{ item.lower_percent }}%">
+                        id="{{item.id}}-lower-fill"
+                        style="width: 33%">
                         <span class="sr-only"></span>
                     </div>
-                    <div class="progress-bar progress-bar-success" style="width: {{ item.percent }}%">
+                    <div class="progress-bar progress-bar-success"
+                        id="{{item.id}}-lower-conf"
+                        style="width: 16.5%">
                         <span class="sr-only"></span>
                     </div>
-                    <div class="progress-bar progress-bar-warning" style="width: {{ item.upper_percent }}%">
+                    <div class="progress-bar progress-bar-danger"
+                        style="width: 1%">
+                        <span class="sr-only"></span>
+                    </div>
+                    <div class="progress-bar progress-bar-success"
+                        id="{{item.id}}-upper-conf"
+                        style="width: 16.5%">
+                        <span class="sr-only"></span>
+                    </div>
+                    <div class="progress-bar progress-bar-warning"
+                        id="{{item.id}}-upper-fill"
+                        style="width: 33%">
                         <span class="sr-only"></span>
                     </div>
                 </div>
@@ -80,5 +94,44 @@
             {% endfor %}
         </tbody>
     </table>
+
+    <script>
+        $(function(){
+            var means = {};
+            var confs = {};
+
+            {% for item in project.items.all %}
+                means[{{item.id}}] = {{item.mean}};
+                confs[{{item.id}}] = {{item.conf}};
+            {% endfor %}
+
+            var max = -999999999999999;
+            var min = 999999999999999;
+            for (key in means){
+                if ((means[key] + confs[key]) > max) {
+                    max = means[key] + confs[key]
+                }
+                if ((means[key] - confs[key]) < min) {
+                    min = means[key] - confs[key]
+                }
+            }
+            range = max - min;
+
+            //console.log(means);
+            //console.log(confs);
+            //console.log(max);
+            //console.log(min);
+
+            $.each(means, function(id, value){
+                lower_fill = 100 * (((means[id] - confs[id]) - min) / range);
+                upper_fill = 100 * ((max - (means[id] + confs[id])) / range);
+                conf = (100 * ((confs[id]) / range)) - 0.5;
+                $('#' + id + '-lower-fill').css('width', lower_fill + '%');
+                $('#' + id + '-lower-conf').css('width', conf + "%");
+                $('#' + id + '-upper-conf').css('width', conf + "%");
+                $('#' + id + '-upper-fill').css('width', upper_fill + '%');
+            });
+        });
+    </script>
 {% endblock %}
 

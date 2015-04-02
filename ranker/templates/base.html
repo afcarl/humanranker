@@ -101,9 +101,11 @@
     </div> <!-- /.modal -->
 
     <script>
-    $('#myModal').on('hidden.bs.modal', function () {
-      $(this).removeData('bs.modal');
-    });
+        $(function(){
+            $('#myModal').on('hidden.bs.modal', function () {
+              $(this).removeData('bs.modal');
+            });
+        });
     </script>
   </body>
 </html>

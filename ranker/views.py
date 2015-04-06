@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from ranker.models import Project, Item, Judge, Rating
-from django.contrib.auth.models import User
+#from django.contrib.auth.models import User
 #from sklearn import linear_model
 # http://scikit-learn.org/stable/modules/linear_model.html#ordinary-least-squares
 from django.http import HttpResponse, HttpResponseRedirect
@@ -11,8 +11,9 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login
 from django.contrib import messages
 from ranker.forms import UserCreateForm, ProjectForm
-from django.core.files.uploadedfile import SimpleUploadedFile
-from scipy.optimize import fmin_bfgs, fmin_tnc, fmin_l_bfgs_b, check_grad
+#from django.core.files.uploadedfile import SimpleUploadedFile
+from scipy.optimize import fmin_tnc
+#from scipy.optimize import check_grad
 from django.db.models import Q
 from math import exp, log
 import numpy as np
@@ -83,6 +84,10 @@ def create_project(request):
 @login_required
 def view_project(request, project_id):
     project = Project.objects.get(id=project_id)
+
+    if not request.user == project.user:
+        messages.error(request, "Sorry! You do not have permission to view this project.")
+        return HttpResponseRedirect(reverse('dashboard'))
 
     update_model(project_id)
 
@@ -464,6 +469,11 @@ def vote(request, project_id, item1_id, item2_id, value):
 @login_required
 def update_project(request, project_id):
     project = Project.objects.get(id=project_id)
+
+    if not request.user == project.user:
+        messages.error(request, "Sorry! You do not have permission to view this project.")
+        return HttpResponseRedirect(reverse('dashboard'))
+
     if request.method == 'POST':
         form = ProjectForm(instance=project, data=request.POST, files=request.FILES)     # create form object
 
@@ -489,13 +499,36 @@ def update_project(request, project_id):
 @login_required
 def delete_project(request, project_id):
     project = Project.objects.get(pk=project_id)
+
+    if not request.user == project.user:
+        messages.error(request, "Sorry! You do not have permission to view this project.")
+        return HttpResponseRedirect(reverse('dashboard'))
+
     project.delete()
     messages.success(request, "Project Deleted!")
     return HttpResponseRedirect(reverse('dashboard'))
 
 @login_required
+def view_item(request, item_id):
+    item = Item.objects.get(pk=item_id)
+
+    if not request.user == item.project.user:
+        messages.error(request, "Sorry! You do not have permission to view this item.")
+        return HttpResponseRedirect(reverse('dashboard'))
+
+    args = {}
+    args.update(csrf(request))
+    args['item'] = item
+    return render(request, 'ranker/view_item.html', args)
+
+@login_required
 def delete_item(request, item_id):
     item = Item.objects.get(pk=item_id)
+
+    if not request.user == item.project.user:
+        messages.error(request, "Sorry! You do not have permission to view this item.")
+        return HttpResponseRedirect(reverse('dashboard'))
+
     project_id = item.project.id
     item.delete()
     messages.success(request, "Item Deleted!")
@@ -506,6 +539,11 @@ def delete_item(request, item_id):
 @login_required
 def export_rankings(request, project_id):
     project = Project.objects.get(id=project_id)
+
+    if not request.user == project.user:
+        messages.error(request, "Sorry! You do not have permission to view this project.")
+        return HttpResponseRedirect(reverse('dashboard'))
+
     items = Item.objects.filter(project=project).distinct()
 
     response = HttpResponse(content_type='text/csv')
@@ -522,6 +560,11 @@ def export_rankings(request, project_id):
 @login_required
 def export_ratings(request, project_id):
     project = Project.objects.get(id=project_id)
+
+    if not request.user == project.user:
+        messages.error(request, "Sorry! You do not have permission to view this project.")
+        return HttpResponseRedirect(reverse('dashboard'))
+
     ratings = Rating.objects.filter(project=project).distinct()
 
     response = HttpResponse(content_type='text/csv')

@@ -1,8 +1,10 @@
 {% extends "base.html" %}
 
+{% block navbar %}
+{% endblock %}
+
 {% block content %}
     <div style="padding: 20px;" class="text-center">
-        <h3>Prompt:</h3>
         <h4>{{ project.prompt }}</h4>
         <h5>(Answer question at bottom)</h5>
     </div>
@@ -25,7 +27,7 @@
 
     <div style="display:block; width:100%; clear: both; padding: 20px;">
         <p style="margin-left: auto; margin-right: auto; width:
-        400px" class="text-center"><strong>Prompt:</strong></br> {{ project.prompt }}</p>
+        400px" class="text-center">{{ project.prompt }}</p>
         <div style="margin-left:auto; margin-right:auto; width: 165px;">
             <fieldset><input id="left" name="Rating" type="radio" value="1"
                 />&nbsp;The <strong>left</strong> item (Item 1)<br />

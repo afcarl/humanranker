@@ -40,7 +40,9 @@
             <tr>
                 <td style="vertical-align: middle" class="text-center"> {{ item.name }} </a></td>
             <td style="vertical-align: middle" class="text-center">
-                <img style="width:100px;" src="{{ item.image.url }}"/>
+                <a data-remote="{% url 'view_item' item.id %}" data-toggle="modal"
+                        data-target="#myModal">
+                        <img style="width:100px;" src="{{ item.image.url }}"/></a>
             </td>
             <td style="vertical-align: middle; padding-top:30px; margin:0px;">
                 <div class="progress">

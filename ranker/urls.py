@@ -24,5 +24,7 @@ urlpatterns = patterns('',
         name='export_ratings'),
     url(r'^delete_item/(?P<item_id>\d+)$', views.delete_item,
         name='delete_item'),
+    url(r'^view_item/(?P<item_id>\d+)$', views.view_item,
+        name='view_item'),
 )
 

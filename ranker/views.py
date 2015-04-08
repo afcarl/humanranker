@@ -444,9 +444,15 @@ def rate(request, project_id):
     if not ip:
         ip = "127.0.0.1"
 
-    judge = Judge.objects.get(ip_address=ip, project=project)
-    h = judge.get_hashkey()
-    count = len(judge.ratings.all())
+    judge = Judge.objects.filter(ip_address=ip, project=project).first()
+
+    if judge:
+        h = judge.get_hashkey()
+        count = len(judge.ratings.all())
+    else:
+        ip_pid = str(ip) + "-" + str(project.id)
+        h = sha1(ip_pid.encode('utf-8')).hexdigest()[0:10]
+        count = 0
 
     template = loader.get_template('ranker/rate.html')
     context = RequestContext(request, {'project': project,

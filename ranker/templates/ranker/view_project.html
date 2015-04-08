@@ -88,6 +88,7 @@
         <thead>
             <tr>
                 <th class="text-center">Judge ID</th>
+                <th class="text-center">Judge HashKey</th>
                 <th class="text-center"># Ratings from Judge</th>
                 <th class="text-center">Discrimination</th>
             </tr>
@@ -96,6 +97,7 @@
             {% for judge in judges %}
             <tr>
                 <td style="vertical-align: middle" class="text-center"> {{ judge.id }} </a></td>
+                <td style="vertical-align: middle" class="text-center"> {{ judge.get_hashkey }} </a></td>
                 <td style="vertical-align: middle" class="text-center"> {{ judge.ratings.all |length }} </a></td>
                 <td style="vertical-align: middle" class="text-center">{{ judge.discrimination|floatformat:"3" }}</td>
             </tr>

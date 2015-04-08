@@ -19,6 +19,7 @@ from math import exp, log
 import numpy as np
 import random
 import csv
+from hashlib import sha1
 
 # regularization parameters
 item_mean = 0.0
@@ -438,10 +439,21 @@ def rate(request, project_id):
 
     # pick 2 randomly
     #items = Item.objects.filter(project=project).order_by("?")[:2]
+
+    ip = request.META.get('REMOTE_ADDR')
+    if not ip:
+        ip = "127.0.0.1"
+
+    judge = Judge.objects.get(ip_address=ip, project=project)
+    h = judge.get_hashkey()
+    count = len(judge.ratings.all())
+
     template = loader.get_template('ranker/rate.html')
     context = RequestContext(request, {'project': project,
                                        'item1': item1,
-                                       'item2': item2})
+                                       'item2': item2,
+                                       'key': h,
+                                       'count': count})
     return HttpResponse(template.render(context))
 
 def vote(request, project_id, item1_id, item2_id, value):

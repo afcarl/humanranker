@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 #from django.db.models.signals import post_save
 #from django.dispatch import receiver
+from hashlib import sha1
 
 #class UserProfile(models.Model):
 #    discrimination = models.DecimalField(decimal_places=10, max_digits=20, default=1.0)
@@ -29,6 +30,10 @@ class Judge(models.Model):
     class Meta:
         ordering = ['-discrimination']
         unique_together = ('ip_address', 'project',)
+
+    def get_hashkey(self):
+        ip_pid = str(self.ip_address) + "-" + str(self.project.id)
+        return sha1(ip_pid.encode('utf-8')).hexdigest()[0:10]
 
 class Item(models.Model):
     def fancy_path(self, filename):

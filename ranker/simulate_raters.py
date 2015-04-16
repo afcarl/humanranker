@@ -188,7 +188,7 @@ if __name__ == "__main__":
     num_runs = 20 
     num_items = 40
     num_judges = 5 
-    num_ratings = 1000
+    num_ratings = 50 
 
     # CONF INIT
     reliability_conf = simulate(num_runs, num_items, num_judges, num_ratings,

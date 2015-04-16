@@ -398,47 +398,35 @@ def update_model(project_id):
 def rate(request, project_id):
     project = Project.objects.get(id=project_id)
 
-    item1 = None
-    item2 = None
-    diff = float('-inf')
-    i1 = None
-    i2 = None
-    for item in Item.objects.filter(project=project).order_by('mean').distinct():
-        i1 = i2
-        i2 = item
+    # Confidence based pair
+    #item1 = None
+    #item2 = None
+    #diff = float('-inf')
+    #i1 = None
+    #i2 = None
+    #for item in Item.objects.filter(project=project).order_by('mean').distinct():
+    #    i1 = i2
+    #    i2 = item
 
-        if not i1 or not i2:
-            continue
+    #    if not i1 or not i2:
+    #        continue
 
-        lower = max(i1.mean - i1.conf, i2.mean - i2.conf)
-        upper = min(i1.mean + i1.conf, i2.mean + i2.conf)
-        if upper - lower > diff:
-            item1 = i1
-            item2 = i2
-            diff = upper - lower
+    #    lower = max(i1.mean - i1.conf, i2.mean - i2.conf)
+    #    upper = min(i1.mean + i1.conf, i2.mean + i2.conf)
+    #    if upper - lower > diff:
+    #        item1 = i1
+    #        item2 = i2
+    #        diff = upper - lower
 
-    if random.random() > 0.5:
-        temp = item1
-        item1 = item2
-        item2 = temp
-    
-    # pick random then pick closest
-    #item1 = Item.objects.filter(project=project).order_by('?')[0]
-    #itemsG = Item.objects.filter(project=project,
-    #                            mean__gte=item1.mean).exclude(id=item1.id).order_by('mean')
-    #itemsL = Item.objects.filter(project=project,
-    #                            mean__lte=item1.mean).exclude(id=item1.id).order_by('-mean')
-    #if not itemsG:
-    #    item2 = itemsL[0]
-    #elif not itemsL:
-    #    item2 = itemsG[0]
-    #elif abs(item1.mean - itemsG[0].mean) < abs(item1.mean - itemsL[0].mean):
-    #    item2 = itemsG[0]
-    #else:
-    #    item2 = itemsL[0]
+    #if random.random() > 0.5:
+    #    temp = item1
+    #    item1 = item2
+    #    item2 = temp
 
     # pick 2 randomly
-    #items = Item.objects.filter(project=project).order_by("?")[:2]
+    items = list(Item.objects.filter(project=project).distinct().order_by("?")[:2])
+    item1 = items[0]
+    item2 = items[1]
 
     ip = request.META.get('REMOTE_ADDR')
     if not ip:

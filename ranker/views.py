@@ -590,9 +590,12 @@ def export_ratings(request, project_id):
 
     writer = csv.writer(response)
     writer.writerow(['rating_id', 'left_item_id', 'right_item_id',
-                     'rating_value', 'judge_id'])
+                     'left_item_name', 'right_item_name',
+                     'rating_value', 'judge_id', 'judge_hash'])
     for r in ratings:
-        writer.writerow([r.id, r.left.id, r.right.id, r.value, r.judge.id])
+        writer.writerow([r.id, r.left.id, r.right.id, r.left.name,
+                         r.right.name, r.value, r.judge.id,
+                         r.judge.get_hashkey()])
 
     return response
 

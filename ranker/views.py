@@ -22,7 +22,9 @@ from ranker.models import Item
 from ranker.models import Judge
 from ranker.models import Rating
 from ranker.models import Likert
-from ranker.forms import UserCreateForm, ProjectForm, ProjectUpdateForm
+from ranker.forms import UserCreateForm
+from ranker.forms import ProjectForm
+from ranker.forms import ProjectUpdateForm
 
 # regularization parameters
 item_mean = 0.0
@@ -557,6 +559,7 @@ def update_project(request, project_id):
             instance = form.save(commit=False)
             instance.user = request.user
             instance.save()
+            form.save_images()
 
             messages.success(request, "Project Updated!")
             return HttpResponseRedirect(reverse('view_project',

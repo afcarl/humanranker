@@ -35,7 +35,15 @@ class ProjectForm(ModelForm):
             it.save()
 
 class ProjectUpdateForm(ModelForm):
+    items = MultiFileField(max_num=1000, min_num=0,
+                                 max_file_size=1024*1024*1024,required=False)
 
     class Meta:
         model = Project
         fields = ['name', 'pairwise_prompt', 'individual_likert_prompt']
+        
+    def save_images(self):
+        for item in self.cleaned_data['items']:
+            it = Item(name=item, image=item, project=self.instance)
+            it.save()
+

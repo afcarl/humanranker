@@ -184,7 +184,7 @@ def update_model(project_id):
 
 
     ######## 2PL #############
-    x0 = [item.mean for item in items] + [judge.discrimination for judge in judges]
+    x0 = [item.mean for item in items] + [judge.pairwise_discrimination for judge in judges]
     #x0 = [2 * (random.random() - 0.5) for item in items] + [3 * random.random() for judge in judges]
     #x0 = [0.0 for item in items] + [1.0 for judge in judges]
 
@@ -212,18 +212,18 @@ def update_model(project_id):
 
     if len(result) > len(items):
         for judge in judges:
-            judge.discrimination = result[jids[judge.id]]
+            judge.pairwise_discrimination = result[jids[judge.id]]
             judge.save()
     else:
         for judge in judges:
-            judge.discrimination = 1.0
+            judge.pairwise_discrimination = 1.0
             judge.save()
 
     # compute the stds
     d2ll = np.array([0.0 for item in items])
 
     for r in ratings:
-        d = r.judge.discrimination
+        d = r.judge.pairwise_discrimination
         left = r.left.mean
         right = r.right.mean
         p = 1.0 / (1.0 + expz(-1 * d * (left-right)))

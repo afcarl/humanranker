@@ -15,6 +15,7 @@ from hashlib import sha1
 class Project(models.Model):
     name = models.CharField(max_length=200)
     pairwise_prompt = models.TextField()
+    individual_prompt = models.TextField()
     user = models.ForeignKey(User)
     added = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
@@ -25,10 +26,10 @@ class Project(models.Model):
 class Judge(models.Model):
     ip_address = models.GenericIPAddressField()
     project = models.ForeignKey(Project)
-    discrimination = models.FloatField(default=1.0)
+    pairwise_discrimination = models.FloatField(default=1.0)
 
     class Meta:
-        ordering = ['-discrimination']
+        ordering = ['-pairwise_discrimination']
         unique_together = ('ip_address', 'project',)
 
     def get_hashkey(self):
@@ -69,5 +70,10 @@ class Rating(models.Model):
     def __str__(self):
         return str((self.left, self.right, self.value))
 
-
-
+class Likert(models.Model):
+    judge = models.ForeignKey(Judge, related_name="likerts")
+    item = models.ForeignKey(Item, related_name='likerts')
+    value = models.FloatField() # 1-7?
+    added = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+    project = models.ForeignKey(Project, related_name="likerts")

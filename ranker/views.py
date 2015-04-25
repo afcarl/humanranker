@@ -613,6 +613,32 @@ def delete_item(request, item_id):
     return HttpResponseRedirect(reverse('view_project',
                                         kwargs={'project_id':
                                                project_id}))
+
+@login_required
+def export_judge_estimates(request, project_id):
+    project = Project.objects.get(id=project_id)
+
+    if not request.user == project.user:
+        messages.error(request, "Sorry! You do not have permission to view this project.")
+        return HttpResponseRedirect(reverse('dashboard'))
+
+    judges = Judge.objects.filter(project=project).distinct()
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="judge-estimate-export-' + str(project.id) + '.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(['id', 'hash key', '# pairwise ratings', 
+                     'pairwise discrimination', '# individual ratings',
+                     'mean individual rating', 'individual discrimination'])
+
+    for judge in judges:
+        writer.writerow([judge.id, judge.get_hashkey(),
+                         len(judge.ratings.all()), judge.discrimination,
+                         len(judge.likerts.all()), judge.bias,
+                         judge.precision])
+
+    return response
     
 @login_required
 def export_rankings(request, project_id):

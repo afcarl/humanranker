@@ -27,7 +27,7 @@ class ProjectForm(ModelForm):
 
     class Meta:
         model = Project
-        fields = ['name', 'prompt']
+        fields = ['name', 'pairwise_prompt']
 
     def save_images(self):
         for item in self.cleaned_data['items']:

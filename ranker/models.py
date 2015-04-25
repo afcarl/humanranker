@@ -14,7 +14,7 @@ from hashlib import sha1
 
 class Project(models.Model):
     name = models.CharField(max_length=200)
-    prompt = models.TextField()
+    pairwise_prompt = models.TextField()
     user = models.ForeignKey(User)
     added = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)

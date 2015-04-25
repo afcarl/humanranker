@@ -91,19 +91,11 @@ def view_project(request, project_id):
         return HttpResponseRedirect(reverse('dashboard'))
 
     update_model(project_id)
-
-    # todo need to ensure the judge parameters are right; particularly if they
-    # vote on multiple projects
     judges = Judge.objects.filter(ratings__project=project).distinct()
-
-    #update_model(project.id)
-    #min_val = min([item.mean - item.conf for item in Item.objects.filter(project=project)])
-    #max_val = max([item.mean + item.conf for item in Item.objects.filter(project=project)])
     template = loader.get_template('ranker/view_project.html')
     context = RequestContext(request, {'project': project,
                                        'judges': judges})
-                                      # 'min_val': min_val,
-                                      # 'max_val': max_val})
+
     return HttpResponse(template.render(context))
 
 def expz(val):
@@ -127,13 +119,8 @@ def ll_2p(x, *args):
 
         y = r.value
         z = d * (left - right)
-        #ez = expz(z)
-        #ll += y * z - log(1 + ez)
         p = 1 / (1 + expz(-1 * z))
         ll += y * log(p) + (1 - y) * log(1 - p)
-
-    #print(ll)
-    #return -1.0 * ll
 
     # Regularization
     # Normal prior on means
@@ -151,7 +138,6 @@ def ll_2p(x, *args):
     judge_reg = (-1.0 / (2 * judge_std * judge_std)) * judge_reg
 
     return -1.0 * (ll + item_reg + judge_reg)
-    #return -1.0 * (ll + item_reg)
 
 def ll_2p_grad(x, *args):
     ids = {i:idx for idx, i in enumerate(args[1])}
@@ -172,8 +158,6 @@ def ll_2p_grad(x, *args):
         grad[ids[r.right.id]] += -1 * d * g
         grad[jids[r.judge.id]] += (left - right) * g
 
-    #return -1 * grad
-
     # Regularization
     # Normal prior on means
     item_reg = np.array([0.0 for v in x])
@@ -188,119 +172,6 @@ def ll_2p_grad(x, *args):
     judge_reg = (-1.0 / (judge_std * judge_std)) * judge_reg
 
     return -1 * (grad + item_reg + judge_reg)
-        
-def ll_1p(x, *args):
-    ids = {i:idx for idx, i in enumerate(args[0])}
-    ratings = args[1]
-
-    ll = 0.0
-    for r in ratings:
-        left = x[ids[r.left.id]]
-        right = x[ids[r.right.id]]
-        y = r.value
-        z = (left - right)
-        ez = expz(z)
-        ll += y * z - log(1 + ez)
-
-    #return -1.0 * ll
-
-    # Normal prior on means
-    item_reg = 0.0
-    for i in ids:
-        diff = x[ids[i]] - item_mean
-        item_reg += diff * diff
-    item_reg = (-1.0 / (2 * item_std * item_std)) * item_reg
-
-    return -1.0 * (ll + item_reg)
-
-def ll_1p_grad(x, *args):
-    ids = {i:idx for idx, i in enumerate(args[0])}
-    ratings = args[1]
-
-    grad = np.array([0.0 for v in x])
-    for r in ratings:
-        left = x[ids[r.left.id]]
-        right = x[ids[r.right.id]]
-        y = r.value
-        p = 1.0 / (1.0 + expz(-1 * (left-right)))
-
-        g = y - p 
-        grad[ids[r.left.id]] += g
-        grad[ids[r.right.id]] += -1 * g
-
-    #return -1.0 * grad
-
-    # Normal prior on means
-    item_reg = np.array([0.0 for v in x])
-    for i in ids:
-        item_reg[ids[i]] += (x[ids[i]] - item_mean)
-    item_reg = (-1.0 / (item_std * item_std)) * item_reg
-
-    return -1 * (grad + item_reg)
-
-#def invlogit(val):
-#    return 1.0 / (1.0 + expz(val))
-
-#def ll_plus_grad(x, *args):
-#    ids = {i:idx for idx, i in enumerate(args)}
-#    #print(ids)
-#    ratings = Rating.objects.filter(Q(left__in=ids)|Q(right__in=ids))
-#
-#    ll = 0.0
-#    grad = [0.0 for v in x]
-#    for r in ratings:
-#        left = x[ids[r.left.id]]
-#        right = x[ids[r.right.id]]
-#        y = r.value
-#        p = max(0.00001, min(0.99999, invlogit(left-right)))
-#        ez = expz(left - right)
-#
-#        ll += (y * log(p) + (1 - y) * log(1-p))
-#        g = ((y - p) * ez * p) / (1 - p)
-#        grad[ids[r.left.id]] += g
-#        grad[ids[r.right.id]] += -1 * g
-#
-#    return -1.0 * np.array(ll), -1.0 * np.array(grad)
-
-
-# OLD, i think it returns the same parameters, but less precise. 
-#def ll_1p(x, *args):
-#    #print(args)
-#    #args = args[0]
-#    ids = {i:idx for idx, i in enumerate(args)}
-#    #print(ids)
-#    ratings = Rating.objects.filter(Q(left__in=ids)|Q(right__in=ids))
-#
-#    ll = 0.0
-#    for r in ratings:
-#        left = x[ids[r.left.id]]
-#        right = x[ids[r.right.id]]
-#        y = r.value
-#        p = max(0.00001, min(0.99999, invlogit(left-right)))
-#        ll += (y * log(p) + (1 - y) * log(1-p))
-#
-#    return -1.0 * np.array(ll)
-#
-#def ll_1p_grad(x, *args):
-#    #print(args)
-#    #args = args[0]
-#    ids = {i:idx for idx, i in enumerate(args)}
-#    #print(ids)
-#    ratings = Rating.objects.filter(Q(left__in=ids)|Q(right__in=ids))
-#
-#    grad = [0.0 for v in x]
-#    for r in ratings:
-#        left = x[ids[r.left.id]]
-#        right = x[ids[r.right.id]]
-#        y = r.value
-#        p = max(0.00001, min(0.99999, invlogit(left-right)))
-#        ez = expz(-1(left - right))
-#
-#        g = ((y - p) * ez * p) / (1 - p)
-#        grad[ids[r.left.id]] += g
-#        grad[ids[r.right.id]] += -1 * g
-#
-#    return -1 * np.array(grad)
 
 def update_model(project_id):
     project = Project.objects.get(id=project_id)
@@ -321,10 +192,6 @@ def update_model(project_id):
     #print(check_grad(ll_2p, ll_2p_grad, x0, tuple(jids), tuple(ids),
     #                                         ratings))
 
-    # BFGS
-    #result = fmin_bfgs(ll_2p, x0, fprime=ll_2p_grad, 
-    #                   args=(tuple(jids), tuple(ids), ratings), disp=False)
-
     # Truncated Newton
     bounds = [('-inf','inf') for v in ids] + [(0.001,'inf') for v in jids]
     result = fmin_tnc(ll_2p, x0, 
@@ -333,22 +200,6 @@ def update_model(project_id):
                       args=(tuple(jids), tuple(ids), ratings), bounds=bounds,
                       disp=False)[0]
     ##########################
-    #print(result)
-
-    ######## 1PL #############
-    #x0 = [item.mean for item in items] 
-    #x0 = [random.random() - 0.5 for item in items] 
-
-    ## BFGS
-    #result = fmin_bfgs(ll_1p, x0, fprime=ll_1p_grad, args=(tuple(ids), ratings),
-    #                   disp=True)
-
-    # Truncated Newton
-    #bounds = [('-inf','inf') for v in x0]
-    #result = fmin_tnc(ll_1p, x0, fprime=ll_1p_grad, args=(tuple(ids), ratings), bounds=bounds,
-    #                   disp=True)[0]
-    ##########################
-
     #print(result)
 
     ids = {i: idx for idx, i in enumerate(ids)}
@@ -395,38 +246,47 @@ def update_model(project_id):
         item.conf = 1.96 * std[ids[item.id]]
         item.save()
 
+def random_pair(project):
+    """
+    Returns a random pair of items from the given project.
+    """
+    items = list(Item.objects.filter(project=project).distinct().order_by("?")[:2])
+    return items[0], items[1]
+
+def conf_adjacent_pair(project):
+    """
+    Returns an adjacent pair of items that have the most confidence interval
+    overlap.
+    """
+    item1 = None
+    item2 = None
+    diff = float('-inf')
+    i1 = None
+    i2 = None
+    for item in Item.objects.filter(project=project).order_by('mean').distinct():
+        i1 = i2
+        i2 = item
+
+        if not i1 or not i2:
+            continue
+
+        lower = max(i1.mean - i1.conf, i2.mean - i2.conf)
+        upper = min(i1.mean + i1.conf, i2.mean + i2.conf)
+        if upper - lower > diff:
+            item1 = i1
+            item2 = i2
+            diff = upper - lower
+
+    if random.random() > 0.5:
+        temp = item1
+        item1 = item2
+        item2 = temp
+
+    return item1, item2
+
 def rate(request, project_id):
     project = Project.objects.get(id=project_id)
-
-    # Confidence based pair
-    #item1 = None
-    #item2 = None
-    #diff = float('-inf')
-    #i1 = None
-    #i2 = None
-    #for item in Item.objects.filter(project=project).order_by('mean').distinct():
-    #    i1 = i2
-    #    i2 = item
-
-    #    if not i1 or not i2:
-    #        continue
-
-    #    lower = max(i1.mean - i1.conf, i2.mean - i2.conf)
-    #    upper = min(i1.mean + i1.conf, i2.mean + i2.conf)
-    #    if upper - lower > diff:
-    #        item1 = i1
-    #        item2 = i2
-    #        diff = upper - lower
-
-    #if random.random() > 0.5:
-    #    temp = item1
-    #    item1 = item2
-    #    item2 = temp
-
-    # pick 2 randomly
-    items = list(Item.objects.filter(project=project).distinct().order_by("?")[:2])
-    item1 = items[0]
-    item2 = items[1]
+    item1, item2 = random_pair(project)
 
     ip = request.META.get('REMOTE_ADDR')
     if not ip:
@@ -556,10 +416,11 @@ def export_rankings(request, project_id):
     response['Content-Disposition'] = 'attachment; filename="measure-export-' + str(project.id) + '.csv"'
 
     writer = csv.writer(response)
-    writer.writerow(['id', 'name', 'parameter estimate', '95% confidence interval', 'prompt'])
+    writer.writerow(['id', 'name', 'parameter estimate', 
+                     '95% confidence interval', 'pairwise prompt'])
     for item in items:
         writer.writerow([item.id, item.name, item.mean, item.conf, '"' +
-                         project.prompt + '"'])
+                         project.pairwise_prompt + '"'])
 
     return response
 

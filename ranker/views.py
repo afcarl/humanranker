@@ -1,10 +1,9 @@
-from math import exp, log
+from math import exp, log, sqrt, pi
 import numpy as np
 import random
 import csv
 from hashlib import sha1
 from scipy.optimize import fmin_tnc
-#from scipy.optimize import check_grad
 from django.db.models import Q
 from django.http import HttpResponse, HttpResponseRedirect
 from django.template import RequestContext, loader
@@ -28,8 +27,15 @@ from ranker.forms import UserCreateForm, ProjectForm, ProjectUpdateForm
 # regularization parameters
 item_mean = 0.0
 item_std = 1.0
-judge_mean = 1.0
-judge_std = 1.0
+
+discrim_mean = 1.0
+discrim_std = 1.0
+
+bias_mean = 3.0
+bias_std = 1.0
+
+noise_mean = 1.0
+noise_std = 1 - sqrt(0.5) # produces a discrimination of mean 1 std 1
 
 def register(request):
     if request.method == 'POST':
@@ -109,9 +115,129 @@ def expz(val):
         val = -12
     return exp(val)
 
+def ll_combined(x, *args):
+    ids = {i:idx for idx, i in enumerate(args[0])}
+    discids = {i:idx + len(ids) for idx, i in enumerate(args[1])}
+    biasids = {i:idx + len(ids) + len(discids) for idx, i in enumerate(args[1])}
+    noiseids = {i:idx + len(ids) + 2*len(discids) for idx, i in enumerate(args[1])}
+    ratings = args[2]
+    likerts = args[3]
+    #ratings = Rating.objects.filter(Q(left__in=ids)|Q(right__in=ids))
+
+    ll = 0.0
+    for r in ratings:
+        left = x[ids[r.left.id]]
+        right = x[ids[r.right.id]]
+        d = x[discids[r.judge.id]]
+
+        y = r.value
+        z = d * (left - right)
+        p = 1 / (1 + expz(-1 * z))
+        ll += y * log(p) + (1 - y) * log(1 - p)
+
+    for l in likerts:
+        u = x[ids[l.item.id]]
+        b = x[biasids[l.judge.id]]
+        n = x[noiseids[l.judge.id]]
+        ll += -log(n) - (((l.value - b - u) * (l.value - b - u)) / (2 * n * n))
+
+    # Regularization
+    # Normal prior on means
+    item_reg = 0.0
+    for i in ids:
+        diff = x[ids[i]] - item_mean
+        item_reg += diff * diff
+    item_reg = (-1.0 / (2 * item_std * item_std)) * item_reg
+
+    # Normal prior on discriminations
+    judge_reg = 0.0
+    for i in discids:
+        diff = x[discids[i]] - discrim_mean
+        judge_reg += diff * diff
+    judge_reg = ((-1.0 / (2 * discrim_std * discrim_std))
+                 * judge_reg)
+
+    # Normal prior on individual bias
+    bias_reg = 0.0
+    for i in biasids:
+        diff = x[biasids[i]] - bias_mean
+        bias_reg += diff * diff
+    bias_reg = ((-1.0 / (2 * bias_std * bias_std))
+                          * bias_reg)
+
+    # Normal prior on individual noise
+    noise_reg = 0.0
+    for i in noiseids:
+        diff = x[noiseids[i]] - noise_mean
+        noise_reg += diff * diff
+    noise_reg = ((-1.0 / (2 * noise_std * noise_std))
+                            * noise_reg)
+
+    return -1.0 * (ll + item_reg + judge_reg + bias_reg + noise_reg)
+
+def ll_combined_grad(x, *args):
+    ids = {i:idx for idx, i in enumerate(args[0])}
+    discids = {i:idx + len(ids) for idx, i in enumerate(args[1])}
+    biasids = {i:idx + len(ids) + len(discids) for idx, i in enumerate(args[1])}
+    noiseids = {i:idx + len(ids) + 2*len(discids) for idx, i in enumerate(args[1])}
+    ratings = args[2]
+    likerts = args[3]
+    #ratings = Rating.objects.filter(Q(left__in=ids)|Q(right__in=ids))
+
+    grad = np.array([0.0 for v in x])
+    for r in ratings:
+        left = x[ids[r.left.id]]
+        right = x[ids[r.right.id]]
+        d = x[discids[r.judge.id]]
+        y = r.value
+        p = 1.0 / (1.0 + expz(-1 * d * (left-right)))
+
+        g = y - p 
+        grad[ids[r.left.id]] += d * g
+        grad[ids[r.right.id]] += -1 * d * g
+        grad[discids[r.judge.id]] += (left - right) * g
+
+    for l in likerts:
+        u = x[ids[l.item.id]]
+        b = x[biasids[l.judge.id]]
+        n = x[noiseids[l.judge.id]]
+
+        prec = 1 / (n * n)
+        error = (l.value - b - u)
+        grad[ids[l.item.id]] += prec * error
+        grad[biasids[l.judge.id]] += prec * error
+        grad[noiseids[l.judge.id]] += -(1 / n) + ((error * error) / (n * n * n))
+
+    # Regularization
+    # Normal prior on means
+    item_reg = np.array([0.0 for v in x])
+    for i in ids:
+        item_reg[ids[i]] += (x[ids[i]] - item_mean)
+    item_reg = (-1.0 / (item_std * item_std)) * item_reg
+
+    # Normal prior on discriminations
+    judge_reg = np.array([0.0 for v in x])
+    for i in discids:
+        judge_reg[discids[i]] += (x[discids[i]] - discrim_mean)
+    judge_reg = (-1.0 / (discrim_std * discrim_std)) * judge_reg
+
+    # Normal prior on bias
+    bias_reg = np.array([0.0 for v in x])
+    for i in biasids:
+        bias_reg[biasids[i]] += (x[biasids[i]] - bias_mean)
+    bias_reg = (-1.0 / (bias_std * bias_std)) * bias_reg
+
+    # Normal prior on noise
+    noise_reg = np.array([0.0 for v in x])
+    for i in noiseids:
+        noise_reg[noiseids[i]] += (x[noiseids[i]] - noise_mean)
+    noise_reg = (-1.0 / (noise_std * noise_std)) * noise_reg
+
+    return -1 * (grad + item_reg + judge_reg + bias_reg + noise_reg)
+
 def ll_2p(x, *args):
-    ids = {i:idx for idx, i in enumerate(args[1])}
-    jids = {i:idx + len(ids) for idx, i in enumerate(args[0])}
+    ids = {i:idx for idx, i in enumerate(args[0])}
+    jids = {i:idx + len(ids) for idx, i in enumerate(args[1])}
     ratings = args[2]
     #ratings = Rating.objects.filter(Q(left__in=ids)|Q(right__in=ids))
 
@@ -137,15 +263,16 @@ def ll_2p(x, *args):
     # Normal prior on discriminations
     judge_reg = 0.0
     for i in jids:
-        diff = x[jids[i]] - judge_mean
+        diff = x[jids[i]] - discrim_mean
         judge_reg += diff * diff
-    judge_reg = (-1.0 / (2 * judge_std * judge_std)) * judge_reg
+    judge_reg = ((-1.0 / (2 * discrim_std * discrim_std))
+                 * judge_reg)
 
     return -1.0 * (ll + item_reg + judge_reg)
 
 def ll_2p_grad(x, *args):
-    ids = {i:idx for idx, i in enumerate(args[1])}
-    jids = {i:idx + len(ids) for idx, i in enumerate(args[0])}
+    ids = {i:idx for idx, i in enumerate(args[0])}
+    jids = {i:idx + len(ids) for idx, i in enumerate(args[1])}
     ratings = args[2]
     #ratings = Rating.objects.filter(Q(left__in=ids)|Q(right__in=ids))
 
@@ -172,8 +299,8 @@ def ll_2p_grad(x, *args):
     # Gamma prior on discriminations
     judge_reg = np.array([0.0 for v in x])
     for i in jids:
-        judge_reg[jids[i]] += (x[jids[i]] - judge_mean)
-    judge_reg = (-1.0 / (judge_std * judge_std)) * judge_reg
+        judge_reg[jids[i]] += (x[jids[i]] - discrim_mean)
+    judge_reg = (-1.0 / (discrim_std * discrim_std)) * judge_reg
 
     return -1 * (grad + item_reg + judge_reg)
 
@@ -184,44 +311,66 @@ def update_model(project_id):
     judges = Judge.objects.filter(ratings__project=project).order_by('id').distinct()
     jids = [judge.id for judge in judges]
     ratings = Rating.objects.filter(Q(left__in=ids)|Q(right__in=ids)).distinct()
-    #x0 = [item.mean for item in items] + [judge.discrimination for judge in judges]
+    likerts = Likert.objects.filter(item__in=ids).distinct()
 
+    x0 = [item.mean for item in items] 
+    x0 += [judge.pairwise_discrimination for judge in judges]
+    x0 += [judge.individual_bias for judge in judges]
+    x0 += [judge.individual_noise for judge in judges]
 
-    ######## 2PL #############
-    x0 = [item.mean for item in items] + [judge.pairwise_discrimination for judge in judges]
-    #x0 = [2 * (random.random() - 0.5) for item in items] + [3 * random.random() for judge in judges]
-    #x0 = [0.0 for item in items] + [1.0 for judge in judges]
+    #from scipy.optimize import check_grad, approx_fprime
+    #print(check_grad(ll_combined, ll_combined_grad, x0, tuple(ids), tuple(jids),
+    #                                         ratings, likerts))
+    #print(approx_fprime(x0, ll_combined, sqrt(np.finfo(float).eps), tuple(ids), tuple(jids), ratings,
+    #              likerts))
+    #print(ll_combined_grad(x0,  tuple(ids), tuple(jids), ratings, likerts)) 
 
-    # Check the gradient calculation
-    #print(check_grad(ll_2p, ll_2p_grad, x0, tuple(jids), tuple(ids),
-    #                                         ratings))
+    bounds = [('-inf','inf') for v in ids]
+    bounds += [(0.001,'inf') for v in jids]
+    bounds += [('-inf','inf') for v in jids]
+    bounds += [(0.28,31.62) for v in jids]
 
-    # Truncated Newton
-    bounds = [('-inf','inf') for v in ids] + [(0.001,'inf') for v in jids]
-    result = fmin_tnc(ll_2p, x0, 
+    result = fmin_tnc(ll_combined, x0, 
                       #approx_grad=True,
                       fprime=ll_2p_grad, 
-                      args=(tuple(jids), tuple(ids), ratings), bounds=bounds,
+                      args=(tuple(ids), tuple(jids), ratings, likerts),
+                      bounds=bounds,
                       disp=False)[0]
+
+    ######## 2PL #############
+    #x0 = [item.mean for item in items] + [judge.pairwise_discrimination for judge in judges]
+    ##x0 = [2 * (random.random() - 0.5) for item in items] + [3 * random.random() for judge in judges]
+    ##x0 = [0.0 for item in items] + [1.0 for judge in judges]
+
+    ## Check the gradient calculation
+    #print(check_grad(ll_2p, ll_2p_grad, x0, tuple(ids), tuple(jids),
+    #                                         ratings))
+
+    ## Truncated Newton
+    #bounds = [('-inf','inf') for v in ids] + [(0.001,'inf') for v in jids]
+    #result = fmin_tnc(ll_2p, x0, 
+    #                  #approx_grad=True,
+    #                  fprime=ll_2p_grad, 
+    #                  args=(tuple(jids), tuple(ids), ratings), bounds=bounds,
+    #                  disp=False)[0]
     ##########################
     #print(result)
 
     ids = {i: idx for idx, i in enumerate(ids)}
     jids = {i: idx + len(ids) for idx, i in enumerate(jids)}
+    biasids = {i: idx + len(ids) + len(jids) for idx, i in enumerate(jids)}
+    noiseids = {i: idx + len(ids) + 2 * len(jids) for idx, i in enumerate(jids)}
 
     for item in items:
         item.mean = result[ids[item.id]]
         item.conf = 10000.0
         item.save()
 
-    if len(result) > len(items):
-        for judge in judges:
-            judge.pairwise_discrimination = result[jids[judge.id]]
-            judge.save()
-    else:
-        for judge in judges:
-            judge.pairwise_discrimination = 1.0
-            judge.save()
+    for judge in judges:
+        judge.pairwise_discrimination = result[jids[judge.id]]
+        judge.individual_bias = result[biasids[judge.id]]
+        judge.individual_noise = result[noiseids[judge.id]]
+        judge.save()
 
     # compute the stds
     d2ll = np.array([0.0 for item in items])
@@ -234,13 +383,23 @@ def update_model(project_id):
         q = 1 - p
         d2ll[ids[r.left.id]] += d * d * p * q
         d2ll[ids[r.right.id]] += d * d * p * q
+    
+    for l in likerts:
+        noise = l.judge.individual_noise
+        d2ll[ids[l.item.id]] += 1 / (noise * noise)
 
     # regularization terms
     for i,v in enumerate(d2ll):
         d2ll[i] += len(ids) / (item_std * item_std) 
         
-        if len(result) > len(items):
-            d2ll[i] += len(jids) / (judge_std * judge_std)
+        d2ll[i] += (len(jids) / (discrim_std *
+                                discrim_std))
+
+        d2ll[i] += (len(jids) / (bias_std *
+                                bias_std))
+
+        d2ll[i] += (len(jids) / (noise_std *
+                                noise_std))
     #print(d2ll)
 
     std = 1.0 / np.sqrt(d2ll)
@@ -353,7 +512,8 @@ def vote_likert(request, project_id, item_id, value):
     likert = Likert(judge=judge, item=item, value=value,
                     project=item.project)
     likert.save()
-    update_model(project_id)
+
+    #update_model(project_id)
 
     return HttpResponseRedirect(reverse('likert', kwargs={'project_id':
                                                         project_id}))
@@ -374,7 +534,7 @@ def vote(request, project_id, item1_id, item2_id, value):
                     project=item1.project)
     rating.save()
 
-    update_model(project_id)
+    #update_model(project_id)
 
     return HttpResponseRedirect(reverse('rate', kwargs={'project_id':
                                                         project_id}))

@@ -109,8 +109,8 @@
                 <td style="vertical-align: middle" class="text-center"> {{ judge.ratings.all |length }} </a></td>
                 <td style="vertical-align: middle" class="text-center">{{ judge.pairwise_discrimination|floatformat:"3" }}</td>
                 <td style="vertical-align: middle" class="text-center"> {{ judge.likerts.all |length }} </a></td>
-                <td style="vertical-align: middle" class="text-center">{{ judge.pairwise_discrimination|floatformat:"3" }}</td>
-                <td style="vertical-align: middle" class="text-center">{{ judge.pairwise_discrimination|floatformat:"3" }}</td>
+                <td style="vertical-align: middle" class="text-center">{{ judge.individual_bias|floatformat:"3" }}</td>
+                <td style="vertical-align: middle" class="text-center">{{ judge.individual_discrimination|floatformat:"3" }}</td>
             </tr>
             {% endfor %}
         </tbody>

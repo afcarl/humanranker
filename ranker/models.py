@@ -27,6 +27,8 @@ class Judge(models.Model):
     ip_address = models.GenericIPAddressField()
     project = models.ForeignKey(Project)
     pairwise_discrimination = models.FloatField(default=1.0)
+    individual_bias = models.FloatField(default=3.0)
+    individual_noise = models.FloatField(default=1.0)
 
     class Meta:
         ordering = ['-pairwise_discrimination']
@@ -35,6 +37,9 @@ class Judge(models.Model):
     def get_hashkey(self):
         ip_pid = str(self.ip_address) + "-" + str(self.project.id)
         return sha1(ip_pid.encode('utf-8')).hexdigest()[0:10]
+
+    def individual_discrimination(self):
+        return 1.0 / (self.individual_noise * self.individual_noise)
 
 class Item(models.Model):
     def fancy_path(self, filename):

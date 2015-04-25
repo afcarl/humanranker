@@ -32,7 +32,7 @@
                 <td>{{ project.ratings.all | length }}</td>
                 <td><a class="btn btn-primary" href="{% url 'export_ratings' project.id %}"
                 role="button">Export Pairwise Ratings</a> <a class="btn
-                btn-success" href="{% url 'likert' project.id %}"
+                btn-success" href="{% url 'rate' project.id %}"
                         role="button">Live Rating Link</a></td>
             </tr>
             <tr>

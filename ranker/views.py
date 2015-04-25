@@ -1,4 +1,4 @@
-from math import exp, log, sqrt, pi
+from math import exp, log, sqrt
 import numpy as np
 import random
 import csv

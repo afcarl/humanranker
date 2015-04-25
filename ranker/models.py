@@ -15,7 +15,7 @@ from hashlib import sha1
 class Project(models.Model):
     name = models.CharField(max_length=200)
     pairwise_prompt = models.TextField()
-    individual_prompt = models.TextField()
+    individual_likert_prompt = models.TextField()
     user = models.ForeignKey(User)
     added = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
@@ -26,20 +26,17 @@ class Project(models.Model):
 class Judge(models.Model):
     ip_address = models.GenericIPAddressField()
     project = models.ForeignKey(Project)
-    pairwise_discrimination = models.FloatField(default=1.0)
-    individual_bias = models.FloatField(default=3.0)
-    individual_noise = models.FloatField(default=1.0)
+    discrimination = models.FloatField(default=1.0)
+    bias = models.FloatField(default=3.0)
+    precision = models.FloatField(default=1.0)
 
     class Meta:
-        ordering = ['-pairwise_discrimination']
+        ordering = ['-discrimination']
         unique_together = ('ip_address', 'project',)
 
     def get_hashkey(self):
         ip_pid = str(self.ip_address) + "-" + str(self.project.id)
         return sha1(ip_pid.encode('utf-8')).hexdigest()[0:10]
-
-    def individual_discrimination(self):
-        return 1.0 / (self.individual_noise * self.individual_noise)
 
 class Item(models.Model):
     def fancy_path(self, filename):

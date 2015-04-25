@@ -34,8 +34,11 @@ discrim_std = 1.0
 bias_mean = 3.0
 bias_std = 1.0
 
-noise_mean = 1.0
-noise_std = 1 - sqrt(0.5) # produces a discrimination of mean 1 std 1
+#noise_mean = 1.0
+#noise_std = 1 - sqrt(0.5) # produces a discrimination of mean 1 std 1
+
+prec_mean = 1.0
+prec_std = 1.0
 
 def register(request):
     if request.method == 'POST':
@@ -119,7 +122,7 @@ def ll_combined(x, *args):
     ids = {i:idx for idx, i in enumerate(args[0])}
     discids = {i:idx + len(ids) for idx, i in enumerate(args[1])}
     biasids = {i:idx + len(ids) + len(discids) for idx, i in enumerate(args[1])}
-    noiseids = {i:idx + len(ids) + 2*len(discids) for idx, i in enumerate(args[1])}
+    precids = {i:idx + len(ids) + 2*len(discids) for idx, i in enumerate(args[1])}
     ratings = args[2]
     likerts = args[3]
     #ratings = Rating.objects.filter(Q(left__in=ids)|Q(right__in=ids))
@@ -138,8 +141,10 @@ def ll_combined(x, *args):
     for l in likerts:
         u = x[ids[l.item.id]]
         b = x[biasids[l.judge.id]]
-        n = x[noiseids[l.judge.id]]
-        ll += -log(n) - (((l.value - b - u) * (l.value - b - u)) / (2 * n * n))
+        p = x[precids[l.judge.id]]
+        #n = sqrt(1/p)
+
+        ll += (1/2)*log(p) - (p * ((l.value - b - u) * (l.value - b - u)) / 2)
 
     # Regularization
     # Normal prior on means
@@ -157,7 +162,7 @@ def ll_combined(x, *args):
     judge_reg = ((-1.0 / (2 * discrim_std * discrim_std))
                  * judge_reg)
 
-    # Normal prior on individual bias
+    # Normal prior on bias
     bias_reg = 0.0
     for i in biasids:
         diff = x[biasids[i]] - bias_mean
@@ -165,21 +170,21 @@ def ll_combined(x, *args):
     bias_reg = ((-1.0 / (2 * bias_std * bias_std))
                           * bias_reg)
 
-    # Normal prior on individual noise
-    noise_reg = 0.0
-    for i in noiseids:
-        diff = x[noiseids[i]] - noise_mean
-        noise_reg += diff * diff
-    noise_reg = ((-1.0 / (2 * noise_std * noise_std))
-                            * noise_reg)
+    # Normal prior on precision
+    prec_reg = 0.0
+    for i in precids:
+        diff = x[precids[i]] - prec_mean
+        prec_reg += diff * diff
+    prec_reg = ((-1.0 / (2 * prec_std * prec_std))
+                            * prec_reg)
 
-    return -1.0 * (ll + item_reg + judge_reg + bias_reg + noise_reg)
+    return -1.0 * (ll + item_reg + judge_reg + bias_reg + prec_reg)
 
 def ll_combined_grad(x, *args):
     ids = {i:idx for idx, i in enumerate(args[0])}
     discids = {i:idx + len(ids) for idx, i in enumerate(args[1])}
     biasids = {i:idx + len(ids) + len(discids) for idx, i in enumerate(args[1])}
-    noiseids = {i:idx + len(ids) + 2*len(discids) for idx, i in enumerate(args[1])}
+    precids = {i:idx + len(ids) + 2*len(discids) for idx, i in enumerate(args[1])}
     ratings = args[2]
     likerts = args[3]
     #ratings = Rating.objects.filter(Q(left__in=ids)|Q(right__in=ids))
@@ -200,13 +205,13 @@ def ll_combined_grad(x, *args):
     for l in likerts:
         u = x[ids[l.item.id]]
         b = x[biasids[l.judge.id]]
-        n = x[noiseids[l.judge.id]]
+        prec = x[precids[l.judge.id]]
+        n = sqrt(1/p)
 
-        prec = 1 / (n * n)
         error = (l.value - b - u)
         grad[ids[l.item.id]] += prec * error
         grad[biasids[l.judge.id]] += prec * error
-        grad[noiseids[l.judge.id]] += -(1 / n) + ((error * error) / (n * n * n))
+        grad[precids[l.judge.id]] += (1 / (2 * prec)) - (error * error)/2
 
     # Regularization
     # Normal prior on means
@@ -228,12 +233,12 @@ def ll_combined_grad(x, *args):
     bias_reg = (-1.0 / (bias_std * bias_std)) * bias_reg
 
     # Normal prior on noise
-    noise_reg = np.array([0.0 for v in x])
-    for i in noiseids:
-        noise_reg[noiseids[i]] += (x[noiseids[i]] - noise_mean)
-    noise_reg = (-1.0 / (noise_std * noise_std)) * noise_reg
+    prec_reg = np.array([0.0 for v in x])
+    for i in precids:
+        prec_reg[precids[i]] += (x[precids[i]] - prec_mean)
+    prec_reg = (-1.0 / (prec_std * prec_std)) * prec_reg
 
-    return -1 * (grad + item_reg + judge_reg + bias_reg + noise_reg)
+    return -1 * (grad + item_reg + judge_reg + bias_reg + prec_reg)
 
 def ll_2p(x, *args):
     ids = {i:idx for idx, i in enumerate(args[0])}
@@ -314,10 +319,11 @@ def update_model(project_id):
     likerts = Likert.objects.filter(item__in=ids).distinct()
 
     x0 = [item.mean for item in items] 
-    x0 += [judge.pairwise_discrimination for judge in judges]
-    x0 += [judge.individual_bias for judge in judges]
-    x0 += [judge.individual_noise for judge in judges]
+    x0 += [judge.discrimination for judge in judges]
+    x0 += [judge.bias for judge in judges]
+    x0 += [judge.precision for judge in judges]
 
+    #print(x0)
     #from scipy.optimize import check_grad, approx_fprime
     #print(check_grad(ll_combined, ll_combined_grad, x0, tuple(ids), tuple(jids),
     #                                         ratings, likerts))
@@ -328,17 +334,17 @@ def update_model(project_id):
     bounds = [('-inf','inf') for v in ids]
     bounds += [(0.001,'inf') for v in jids]
     bounds += [('-inf','inf') for v in jids]
-    bounds += [(0.28,31.62) for v in jids]
+    bounds += [(0.001,'inf') for v in jids]
 
     result = fmin_tnc(ll_combined, x0, 
                       #approx_grad=True,
-                      fprime=ll_2p_grad, 
+                      fprime=ll_combined_grad, 
                       args=(tuple(ids), tuple(jids), ratings, likerts),
                       bounds=bounds,
                       disp=False)[0]
 
     ######## 2PL #############
-    #x0 = [item.mean for item in items] + [judge.pairwise_discrimination for judge in judges]
+    #x0 = [item.mean for item in items] + [judge.discrimination for judge in judges]
     ##x0 = [2 * (random.random() - 0.5) for item in items] + [3 * random.random() for judge in judges]
     ##x0 = [0.0 for item in items] + [1.0 for judge in judges]
 
@@ -357,9 +363,9 @@ def update_model(project_id):
     #print(result)
 
     ids = {i: idx for idx, i in enumerate(ids)}
-    jids = {i: idx + len(ids) for idx, i in enumerate(jids)}
+    discids = {i: idx + len(ids) for idx, i in enumerate(jids)}
     biasids = {i: idx + len(ids) + len(jids) for idx, i in enumerate(jids)}
-    noiseids = {i: idx + len(ids) + 2 * len(jids) for idx, i in enumerate(jids)}
+    precids = {i: idx + len(ids) + 2 * len(jids) for idx, i in enumerate(jids)}
 
     for item in items:
         item.mean = result[ids[item.id]]
@@ -367,16 +373,16 @@ def update_model(project_id):
         item.save()
 
     for judge in judges:
-        judge.pairwise_discrimination = result[jids[judge.id]]
-        judge.individual_bias = result[biasids[judge.id]]
-        judge.individual_noise = result[noiseids[judge.id]]
+        judge.discrimination = result[discids[judge.id]]
+        judge.bias = result[biasids[judge.id]]
+        judge.precision = result[precids[judge.id]]
         judge.save()
 
     # compute the stds
     d2ll = np.array([0.0 for item in items])
 
     for r in ratings:
-        d = r.judge.pairwise_discrimination
+        d = r.judge.discrimination
         left = r.left.mean
         right = r.right.mean
         p = 1.0 / (1.0 + expz(-1 * d * (left-right)))
@@ -385,21 +391,17 @@ def update_model(project_id):
         d2ll[ids[r.right.id]] += d * d * p * q
     
     for l in likerts:
-        noise = l.judge.individual_noise
-        d2ll[ids[l.item.id]] += 1 / (noise * noise)
+        d2ll[ids[l.item.id]] += l.judge.precision
 
     # regularization terms
     for i,v in enumerate(d2ll):
         d2ll[i] += len(ids) / (item_std * item_std) 
         
-        d2ll[i] += (len(jids) / (discrim_std *
-                                discrim_std))
+        d2ll[i] += (len(discids) / (discrim_std * discrim_std))
 
-        d2ll[i] += (len(jids) / (bias_std *
-                                bias_std))
+        d2ll[i] += (len(biasids) / (bias_std * bias_std))
 
-        d2ll[i] += (len(jids) / (noise_std *
-                                noise_std))
+        d2ll[i] += (len(precids) / (prec_std * prec_std))
     #print(d2ll)
 
     std = 1.0 / np.sqrt(d2ll)
@@ -620,14 +622,13 @@ def export_rankings(request, project_id):
     items = Item.objects.filter(project=project).distinct()
 
     response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="measure-export-' + str(project.id) + '.csv"'
+    response['Content-Disposition'] = 'attachment; filename="item-estimate-export-' + str(project.id) + '.csv"'
 
     writer = csv.writer(response)
     writer.writerow(['id', 'name', 'parameter estimate', 
-                     '95% confidence interval', 'pairwise prompt'])
+                     '+/- 95% confidence interval'])
     for item in items:
-        writer.writerow([item.id, item.name, item.mean, item.conf, '"' +
-                         project.pairwise_prompt + '"'])
+        writer.writerow([item.id, item.name, item.mean, item.conf])
 
     return response
 
@@ -642,7 +643,7 @@ def export_ratings(request, project_id):
     ratings = Rating.objects.filter(project=project).distinct()
 
     response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="measure-export-' + str(project.id) + '.csv"'
+    response['Content-Disposition'] = 'attachment; filename="pairwise-export-' + str(project.id) + '.csv"'
 
     writer = csv.writer(response)
     writer.writerow(['rating_id', 'left_item_id', 'right_item_id',
@@ -655,3 +656,27 @@ def export_ratings(request, project_id):
 
     return response
 
+@login_required
+def export_likerts(request, project_id):
+    project = Project.objects.get(id=project_id)
+
+    if not request.user == project.user:
+        messages.error(request, "Sorry! You do not have permission to view this project.")
+        return HttpResponseRedirect(reverse('dashboard'))
+
+    likerts = Likert.objects.filter(project=project).distinct()
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="individual-export-' + str(project.id) + '.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(['likert_id', 'item_id', 'item_name', 
+                     'rating_value (5=strongly agree, 1=strongly disagree)', 
+                     'judge_id', 'judge_hash'])
+    for l in likerts:
+        writer.writerow([l.id, l.item.id, l.item.name, 
+                         l.value, 
+                         l.judge.id,
+                         l.judge.get_hashkey()])
+
+    return response

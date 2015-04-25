@@ -4,10 +4,11 @@
 {% endblock %}
 
 {% block content %}
-    <div style="padding: 20px;" class="text-center">
+    <!--<div style="padding: 20px;" class="text-center">
         <h4>{{ project.pairwise_prompt }}</h4>
         <h5>(Answer question at bottom)</h5>
     </div>
+    -->
 
     <div style="display:block; width: 100%; clear: both;">
         <div style="float:left; width: 49%; text-align:center; border-style:solid; border-width:3px;">
@@ -26,8 +27,8 @@
     </div>
 
     <div style="display:block; width:100%; clear: both; padding: 20px;">
-        <p style="margin-left: auto; margin-right: auto; width:
-        400px" class="text-center">{{ project.prompt }}</p>
+        <h4 style="margin-left: auto; margin-right: auto; width:
+        400px" class="text-center">{{ project.pairwise_prompt }}</h4>
         <div style="margin-left:auto; margin-right:auto; width: 165px;">
             <fieldset><input id="left" name="Rating" type="radio" value="1"
                 />&nbsp;The <strong>left</strong> item (Item 1)<br />
@@ -45,7 +46,7 @@
 
     <div style="text-align: center; width: 100%; padding: 10px;">
         <p>Rater Key: {{ key }}</p>
-        <p># of Ratings: {{ count }}</p>
+        <p># of Pairwise Ratings: {{ count }}</p>
     </div>
     
 

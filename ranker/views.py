@@ -1,8 +1,11 @@
-from django.shortcuts import render
-from ranker.models import Project, Item, Judge, Rating
-#from django.contrib.auth.models import User
-#from sklearn import linear_model
-# http://scikit-learn.org/stable/modules/linear_model.html#ordinary-least-squares
+from math import exp, log
+import numpy as np
+import random
+import csv
+from hashlib import sha1
+from scipy.optimize import fmin_tnc
+#from scipy.optimize import check_grad
+from django.db.models import Q
 from django.http import HttpResponse, HttpResponseRedirect
 from django.template import RequestContext, loader
 from django.core.context_processors import csrf 
@@ -10,16 +13,17 @@ from django.core.urlresolvers import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login
 from django.contrib import messages
-from ranker.forms import UserCreateForm, ProjectForm
+from django.shortcuts import render
 #from django.core.files.uploadedfile import SimpleUploadedFile
-from scipy.optimize import fmin_tnc
-#from scipy.optimize import check_grad
-from django.db.models import Q
-from math import exp, log
-import numpy as np
-import random
-import csv
-from hashlib import sha1
+#from django.contrib.auth.models import User
+#from sklearn import linear_model
+# http://scikit-learn.org/stable/modules/linear_model.html#ordinary-least-squares
+from ranker.models import Project
+from ranker.models import Item
+from ranker.models import Judge
+from ranker.models import Rating
+from ranker.models import Likert
+from ranker.forms import UserCreateForm, ProjectForm, ProjectUpdateForm
 
 # regularization parameters
 item_mean = 0.0
@@ -91,7 +95,7 @@ def view_project(request, project_id):
         return HttpResponseRedirect(reverse('dashboard'))
 
     update_model(project_id)
-    judges = Judge.objects.filter(ratings__project=project).distinct()
+    judges = Judge.objects.filter(project=project).distinct()
     template = loader.get_template('ranker/view_project.html')
     context = RequestContext(request, {'project': project,
                                        'judges': judges})
@@ -284,6 +288,32 @@ def conf_adjacent_pair(project):
 
     return item1, item2
 
+def likert(request, project_id):
+    project = Project.objects.get(id=project_id)
+    item = Item.objects.filter(project=project).distinct().order_by("?")[0]
+
+    ip = request.META.get('REMOTE_ADDR')
+    if not ip:
+        ip = "127.0.0.1"
+
+    judge = Judge.objects.filter(ip_address=ip, project=project).first()
+
+    if judge:
+        h = judge.get_hashkey()
+        count = len(judge.likerts.all())
+    else:
+        ip_pid = str(ip) + "-" + str(project.id)
+        h = sha1(ip_pid.encode('utf-8')).hexdigest()[0:10]
+        count = 0
+
+    template = loader.get_template('ranker/likert.html')
+    context = RequestContext(request, {'project': project,
+                                       'item': item,
+                                       'key': h,
+                                       'count': count})
+    return HttpResponse(template.render(context))
+
+
 def rate(request, project_id):
     project = Project.objects.get(id=project_id)
     item1, item2 = random_pair(project)
@@ -309,6 +339,24 @@ def rate(request, project_id):
                                        'key': h,
                                        'count': count})
     return HttpResponse(template.render(context))
+
+def vote_likert(request, project_id, item_id, value):
+    ip = request.META.get('REMOTE_ADDR')
+
+    if not ip:
+        ip = "127.0.0.1"
+
+    project = Project.objects.get(id=project_id)
+    judge, new = Judge.objects.get_or_create(ip_address=ip,project=project)
+    item = Item.objects.get(id=item_id)
+
+    likert = Likert(judge=judge, item=item, value=value,
+                    project=item.project)
+    likert.save()
+    update_model(project_id)
+
+    return HttpResponseRedirect(reverse('likert', kwargs={'project_id':
+                                                        project_id}))
 
 def vote(request, project_id, item1_id, item2_id, value):
     ip = request.META.get('REMOTE_ADDR')
@@ -341,20 +389,19 @@ def update_project(request, project_id):
         return HttpResponseRedirect(reverse('dashboard'))
 
     if request.method == 'POST':
-        form = ProjectForm(instance=project, data=request.POST, files=request.FILES)     # create form object
+        form = ProjectUpdateForm(instance=project, data=request.POST, files=request.FILES)     # create form object
 
         if form.is_valid():
             instance = form.save(commit=False)
             instance.user = request.user
             instance.save()
-            form.save_images()
 
             messages.success(request, "Project Updated!")
             return HttpResponseRedirect(reverse('view_project',
                                                 kwargs={'project_id':
                                                         instance.id}))
     else:
-        form = ProjectForm(instance=project)
+        form = ProjectUpdateForm(instance=project)
 
     args = {}
     args.update(csrf(request))

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block navbar %}
+{% endblock %}
+
+{% block content %}
+    <div style="display:block; width: 100%; clear: both;">
+        <div style="float:left; width: 100%; text-align:center; border-style:solid; border-width:3px;">
+            <div id="image">
+                <img style="width:100%;" src="{{ item.image.url }}"/>
+            </div>
+        </div>
+    </div>
+
+    <div style="display:block; width:100%; clear: both; padding: 20px;">
+        <h4 style="margin-left: auto; margin-right: auto; width:
+        400px" class="text-center">{{ project.individual_prompt }}</h4>
+        <div style="margin-left:auto; margin-right:auto; width: 300px;
+            padding-left: 80px">
+            <fieldset>
+                <input id="l5" name="Rating" type="radio" value="1" />&nbsp;I
+                <strong>strongly agree</strong><br />
+                <input id="l4" name="Rating" type="radio" value="2" />&nbsp;I
+                <strong>agree</strong><br />
+                <input id="l3" name="Rating" type="radio" value="3" />&nbsp;I
+                <strong>neither agree nor disagree</strong><br />
+                <input id="l2" name="Rating" type="radio" value="4" />&nbsp;I
+                <strong>disagree</strong><br />
+                <input id="l1" name="Rating" type="radio" value="5" />&nbsp;I
+                <strong>strongly disagree</strong><br />
+        </div>
+    </div>
+
+    <div style="text-align:center; width: 100%; padding: 10px;">
+        <button id="submit">Submit</button>
+        <br/><br/>
+    </div>
+
+    <hr>
+
+    <div style="text-align: center; width: 100%; padding: 10px;">
+        <p>Rater Key: {{ key }}</p>
+        <p># of Individual Ratings: {{ count }}</p>
+    </div>
+    
+
+<script>
+    $(function(){
+        $('#submit').click(function(){
+            if ($('#l5').is(":checked")){
+                window.location = "{% url 'vote_likert' project.id item.id 5 %}"
+            }
+            else if ($('#l4').is(":checked")){
+                window.location = "{% url 'vote_likert' project.id item.id 4 %}"
+            }
+            else if ($('#l3').is(":checked")){
+                window.location = "{% url 'vote_likert' project.id item.id 3 %}"
+            }
+            else if ($('#l2').is(":checked")){
+                window.location = "{% url 'vote_likert' project.id item.id 2 %}"
+            }
+            else if ($('#l1').is(":checked")){
+                window.location = "{% url 'vote_likert' project.id item.id 1 %}"
+            }
+        });
+    });
+</script>
+    
+
+{% endblock %}
+

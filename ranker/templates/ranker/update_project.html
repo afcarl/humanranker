@@ -28,4 +28,15 @@
     </div>
 </div>
 
+<script>
+    $(function(){
+        $('#id_name').attr('placeholder', "Creativity Ranking Project");
+        $('#id_pairwise_prompt').attr('placeholder', "Which design is more creative?");
+        $('#id_pairwise_prompt').attr('rows', "2");
+        $('#id_individual_prompt').attr('placeholder', "This design is creative.");
+        $('#id_individual_prompt').attr('rows', "2");
+        $('label[for="id_individual_prompt"]').text("Individual likert prompt:");
+    });
+</script>
+
 {% endblock %}

@@ -23,16 +23,14 @@
         <div style="margin-left:auto; margin-right:auto; width: 300px;
             padding-left: 80px">
             <fieldset>
-                <input id="l5" name="Rating" type="radio" value="1" />&nbsp;I
-                <strong>strongly agree</strong><br />
-                <input id="l4" name="Rating" type="radio" value="2" />&nbsp;I
-                <strong>agree</strong><br />
-                <input id="l3" name="Rating" type="radio" value="3" />&nbsp;I
-                <strong>neither agree nor disagree</strong><br />
-                <input id="l2" name="Rating" type="radio" value="4" />&nbsp;I
-                <strong>disagree</strong><br />
-                <input id="l1" name="Rating" type="radio" value="5" />&nbsp;I
-                <strong>strongly disagree</strong><br />
+                <input id="l7" name="Rating" type="radio" value="7" />&nbsp;{{ project.likert_label_7 }}</strong><br />
+                <input id="l6" name="Rating" type="radio" value="6" />&nbsp;{{ project.likert_label_6 }}</strong><br />
+                <input id="l5" name="Rating" type="radio" value="5" />&nbsp;{{ project.likert_label_5 }}</strong><br />
+                <input id="l4" name="Rating" type="radio" value="4" />&nbsp;{{ project.likert_label_4 }}</strong><br />
+                <input id="l3" name="Rating" type="radio" value="3" />&nbsp;{{ project.likert_label_3 }}</strong><br />
+                <input id="l2" name="Rating" type="radio" value="2" />&nbsp;{{ project.likert_label_2 }}</strong><br />
+                <input id="l1" name="Rating" type="radio" value="1" />&nbsp;{{ project.likert_label_1 }}</strong><br />
+            </fieldset>
         </div>
     </div>
 
@@ -52,20 +50,26 @@
 <script>
     $(function(){
         $('#submit').click(function(){
-            if ($('#l5').is(":checked")){
-                window.location = "{% url 'vote_likert' project.id item.id 5 %}"
+            if ($('#l7').is(":checked")){
+            window.location = "{% url 'vote_likert' project.id item.id 7 %}"; 
+            }
+            else if ($('#l6').is(":checked")){
+                window.location = "{% url 'vote_likert' project.id item.id 6 %}";
+            }
+            else if ($('#l5').is(":checked")){
+                window.location = "{% url 'vote_likert' project.id item.id 5 %}";
             }
             else if ($('#l4').is(":checked")){
-                window.location = "{% url 'vote_likert' project.id item.id 4 %}"
+                window.location = "{% url 'vote_likert' project.id item.id 4 %}";
             }
             else if ($('#l3').is(":checked")){
-                window.location = "{% url 'vote_likert' project.id item.id 3 %}"
+                window.location = "{% url 'vote_likert' project.id item.id 3 %}";
             }
             else if ($('#l2').is(":checked")){
-                window.location = "{% url 'vote_likert' project.id item.id 2 %}"
+                window.location = "{% url 'vote_likert' project.id item.id 2 %}";
             }
             else if ($('#l1').is(":checked")){
-                window.location = "{% url 'vote_likert' project.id item.id 1 %}"
+                window.location = "{% url 'vote_likert' project.id item.id 1 %}";
             }
         });
     });

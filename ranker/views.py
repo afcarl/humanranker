@@ -33,8 +33,8 @@ item_std = 1.0
 discrim_mean = 1.0
 discrim_std = 1.0
 
-bias_mean = 3.0
-bias_std = 1.0
+bias_mean = 4.0
+bias_std = 1.5
 
 #noise_mean = 1.0
 #noise_std = 1 - sqrt(0.5) # produces a discrimination of mean 1 std 1
@@ -453,7 +453,6 @@ def conf_adjacent_pair(project):
 
 def likert(request, project_id):
     project = Project.objects.get(id=project_id)
-    item = Item.objects.filter(project=project).distinct().order_by("?")[0]
 
     ip = request.META.get('REMOTE_ADDR')
     if not ip:
@@ -461,13 +460,18 @@ def likert(request, project_id):
 
     judge = Judge.objects.filter(ip_address=ip, project=project).first()
 
+    items = Item.objects.filter(project=project).distinct()
     if judge:
         h = judge.get_hashkey()
         count = len(judge.likerts.all())
+        last = Likert.objects.filter(project=project,judge=judge).order_by('-added').first()
+        items = items.exclude(id=last.item.id)
     else:
         ip_pid = str(ip) + "-" + str(project.id)
         h = sha1(ip_pid.encode('utf-8')).hexdigest()[0:10]
         count = 0
+
+    item = items.order_by("?")[0]
 
     template = loader.get_template('ranker/likert.html')
     context = RequestContext(request, {'project': project,

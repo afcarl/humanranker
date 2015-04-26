@@ -27,7 +27,10 @@ class ProjectForm(ModelForm):
 
     class Meta:
         model = Project
-        fields = ['name', 'pairwise_prompt', 'individual_likert_prompt']
+        fields = ['name', 'pairwise_prompt', 'individual_likert_prompt',
+                  'likert_label_7', 'likert_label_6', 'likert_label_5',
+                  'likert_label_4', 'likert_label_3', 'likert_label_2',
+                  'likert_label_1']
 
     def save_images(self):
         for item in self.cleaned_data['items']:
@@ -40,7 +43,10 @@ class ProjectUpdateForm(ModelForm):
 
     class Meta:
         model = Project
-        fields = ['name', 'pairwise_prompt', 'individual_likert_prompt']
+        fields = ['name', 'pairwise_prompt', 'individual_likert_prompt',
+                  'likert_label_7', 'likert_label_6', 'likert_label_5',
+                  'likert_label_4', 'likert_label_3', 'likert_label_2',
+                  'likert_label_1']
         
     def save_images(self):
         for item in self.cleaned_data['items']:

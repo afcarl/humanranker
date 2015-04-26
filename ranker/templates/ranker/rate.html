@@ -50,6 +50,8 @@
 
 <script>
     $(function(){
+        $('body').css("padding-top", "0px");
+
         $('#submit').click(function(){
             if ($('#left').is(":checked")){
                 window.location = "{% url 'vote' project.id item1.id item2.id 1 %}"

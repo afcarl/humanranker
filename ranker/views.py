@@ -208,7 +208,7 @@ def ll_combined_grad(x, *args):
         u = x[ids[l.item.id]]
         b = x[biasids[l.judge.id]]
         prec = x[precids[l.judge.id]]
-        n = sqrt(1/p)
+        #n = sqrt(1/prec)
 
         error = (l.value - b - u)
         grad[ids[l.item.id]] += prec * error

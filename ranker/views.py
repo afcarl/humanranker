@@ -315,7 +315,7 @@ def update_model(project_id):
     project = Project.objects.get(id=project_id)
     items = Item.objects.filter(project=project).order_by('id').distinct()
     ids = [item.id for item in items]
-    judges = Judge.objects.filter(ratings__project=project).order_by('id').distinct()
+    judges = Judge.objects.filter(project=project).order_by('id').distinct()
     jids = [judge.id for judge in judges]
     ratings = Rating.objects.filter(Q(left__in=ids)|Q(right__in=ids)).distinct()
     likerts = Likert.objects.filter(item__in=ids).distinct()

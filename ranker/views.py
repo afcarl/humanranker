@@ -459,8 +459,8 @@ def likert(request, project_id):
         ip = "127.0.0.1"
 
     judge = Judge.objects.filter(ip_address=ip, project=project).first()
-
     items = Item.objects.filter(project=project).distinct()
+
     if judge:
         h = judge.get_hashkey()
         count = len(judge.likerts.all())
@@ -507,42 +507,61 @@ def rate(request, project_id):
                                        'count': count})
     return HttpResponse(template.render(context))
 
-def vote_likert(request, project_id, item_id, value):
-    ip = request.META.get('REMOTE_ADDR')
+def vote_likert(request, project_id):
 
-    if not ip:
-        ip = "127.0.0.1"
+    if (request.method == 'POST' and 'item_id' in request.POST and 'rating' in
+        request.POST):
 
-    project = Project.objects.get(id=project_id)
-    judge, new = Judge.objects.get_or_create(ip_address=ip,project=project)
-    item = Item.objects.get(id=item_id)
+        item_id = request.POST['item_id']
+        value = request.POST['rating']
 
-    likert = Likert(judge=judge, item=item, value=value,
-                    project=item.project)
-    likert.save()
+        ip = request.META.get('REMOTE_ADDR')
 
-    #update_model(project_id)
+        if not ip:
+            ip = "127.0.0.1"
+
+        project = Project.objects.get(id=project_id)
+        judge, new = Judge.objects.get_or_create(ip_address=ip,project=project)
+        item = Item.objects.get(id=item_id)
+
+        likert = Likert(judge=judge, item=item, value=value,
+                        project=item.project)
+        likert.save()
+
+        #update_model(project_id)
+    else:
+        messages.error(request, "Error processing your rating. Try again.")
 
     return HttpResponseRedirect(reverse('likert', kwargs={'project_id':
                                                         project_id}))
 
-def vote(request, project_id, item1_id, item2_id, value):
-    ip = request.META.get('REMOTE_ADDR')
+def vote(request, project_id):
+    
+    if (request.method == 'POST' and 'item1_id' in request.POST and 'item2_id'
+        in request.POST and 'rating' in request.POST):
 
-    if not ip:
-        ip = "127.0.0.1"
+        item1_id = request.POST['item1_id']
+        item2_id = request.POST['item2_id']
+        value = request.POST['rating']
 
-    project = Project.objects.get(id=project_id)
-    judge, new = Judge.objects.get_or_create(ip_address=ip,project=project)
+        ip = request.META.get('REMOTE_ADDR')
 
-    item1 = Item.objects.get(id=item1_id)
-    item2 = Item.objects.get(id=item2_id)
+        if not ip:
+            ip = "127.0.0.1"
 
-    rating = Rating(judge=judge, left=item1, right=item2, value=value,
-                    project=item1.project)
-    rating.save()
+        project = Project.objects.get(id=project_id)
+        judge, new = Judge.objects.get_or_create(ip_address=ip,project=project)
 
-    #update_model(project_id)
+        item1 = Item.objects.get(id=item1_id)
+        item2 = Item.objects.get(id=item2_id)
+
+        rating = Rating(judge=judge, left=item1, right=item2, value=value,
+                        project=item1.project)
+        rating.save()
+
+        #update_model(project_id)
+    else:
+        messages.error(request, "Error processing your rating. Try again.")
 
     return HttpResponseRedirect(reverse('rate', kwargs={'project_id':
                                                         project_id}))

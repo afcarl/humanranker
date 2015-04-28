@@ -17,27 +17,38 @@
         </div>
     </div>
 
-    <div style="display:block; width:100%; clear: both; padding: 20px;">
-        <h4 style="margin-left: auto; margin-right: auto; width:
-        400px" class="text-center">{{ project.individual_likert_prompt }}</h4>
-        <div style="margin-left:auto; margin-right:auto; width: 300px;
-            padding-left: 80px">
-            <fieldset>
-                <input id="l7" name="Rating" type="radio" value="7" />&nbsp;{{ project.likert_label_7 }}</strong><br />
-                <input id="l6" name="Rating" type="radio" value="6" />&nbsp;{{ project.likert_label_6 }}</strong><br />
-                <input id="l5" name="Rating" type="radio" value="5" />&nbsp;{{ project.likert_label_5 }}</strong><br />
-                <input id="l4" name="Rating" type="radio" value="4" />&nbsp;{{ project.likert_label_4 }}</strong><br />
-                <input id="l3" name="Rating" type="radio" value="3" />&nbsp;{{ project.likert_label_3 }}</strong><br />
-                <input id="l2" name="Rating" type="radio" value="2" />&nbsp;{{ project.likert_label_2 }}</strong><br />
-                <input id="l1" name="Rating" type="radio" value="1" />&nbsp;{{ project.likert_label_1 }}</strong><br />
-            </fieldset>
+    <form method="post" action="{% url 'vote_likert' project.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="item_id" value="{{ item.id }}">
+        <div style="display:block; width:100%; clear: both; padding: 20px;">
+            <h4 style="margin-left: auto; margin-right: auto; width:
+            400px" class="text-center">{{ project.individual_likert_prompt }}</h4>
+            <div style="margin-left:auto; margin-right:auto; width: 300px;
+                padding-left: 80px">
+                <fieldset>
+                    <input id="l7" name="rating" type="radio" value="7"
+                    required />&nbsp;{{ project.likert_label_7 }}</strong><br />
+                    <input id="l6" name="rating" type="radio" value="6"
+                    />&nbsp;{{ project.likert_label_6 }}</strong><br />
+                    <input id="l5" name="rating" type="radio" value="5"
+                    />&nbsp;{{ project.likert_label_5 }}</strong><br />
+                    <input id="l4" name="rating" type="radio" value="4"
+                    />&nbsp;{{ project.likert_label_4 }}</strong><br />
+                    <input id="l3" name="rating" type="radio" value="3"
+                    />&nbsp;{{ project.likert_label_3 }}</strong><br />
+                    <input id="l2" name="rating" type="radio" value="2"
+                    />&nbsp;{{ project.likert_label_2 }}</strong><br />
+                    <input id="l1" name="rating" type="radio" value="1"
+                    />&nbsp;{{ project.likert_label_1 }}</strong><br />
+                </fieldset>
+            </div>
         </div>
-    </div>
 
-    <div style="text-align:center; width: 100%; padding: 10px;">
-        <button id="submit">Submit</button>
-        <br/><br/>
-    </div>
+        <div style="text-align:center; width: 100%; padding: 10px;">
+            <button id="submit">Submit</button>
+            <br/><br/>
+        </div>
+    </form>
 
     <hr>
 
@@ -50,30 +61,6 @@
 <script>
     $(function(){
         $('body').css("padding-top", "0px");
-
-        $('#submit').click(function(){
-            if ($('#l7').is(":checked")){
-            window.location = "{% url 'vote_likert' project.id item.id 7 %}"; 
-            }
-            else if ($('#l6').is(":checked")){
-                window.location = "{% url 'vote_likert' project.id item.id 6 %}";
-            }
-            else if ($('#l5').is(":checked")){
-                window.location = "{% url 'vote_likert' project.id item.id 5 %}";
-            }
-            else if ($('#l4').is(":checked")){
-                window.location = "{% url 'vote_likert' project.id item.id 4 %}";
-            }
-            else if ($('#l3').is(":checked")){
-                window.location = "{% url 'vote_likert' project.id item.id 3 %}";
-            }
-            else if ($('#l2').is(":checked")){
-                window.location = "{% url 'vote_likert' project.id item.id 2 %}";
-            }
-            else if ($('#l1').is(":checked")){
-                window.location = "{% url 'vote_likert' project.id item.id 1 %}";
-            }
-        });
     });
 </script>
     

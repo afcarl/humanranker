@@ -24,21 +24,28 @@
         </div>
     </div>
 
-    <div style="display:block; width:100%; clear: both; padding: 20px;">
-        <h4 style="margin-left: auto; margin-right: auto; width:
-        400px" class="text-center">{{ project.pairwise_prompt }}</h4>
-        <div style="margin-left:auto; margin-right:auto; width: 165px;">
-            <fieldset><input id="left" name="Rating" type="radio" value="1"
-                />&nbsp;The <strong>left</strong> item (Item 1)<br />
-            <input name="Rating" id="right" type="radio" value="0"
-            />&nbsp;The <strong>right</strong> item (Item 2)<br />
-        </div>
-    </div>
+    <form method="post" action="{% url 'vote' project.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="item1_id" value="{{ item1.id }}">
+        <input type="hidden" name="item2_id" value="{{ item2.id }}">
 
-    <div style="text-align:center; width: 100%; padding: 10px;">
-        <button id="submit">Submit</button>
-        <br/><br/>
-    </div>
+        <div style="display:block; width:100%; clear: both; padding: 20px;">
+            <h4 style="margin-left: auto; margin-right: auto; width:
+            400px" class="text-center">{{ project.pairwise_prompt }}</h4>
+            <div style="margin-left:auto; margin-right:auto; width: 165px;">
+                <fieldset>
+                    <input id="left" name="rating" type="radio" value="1"
+                    required />&nbsp;The <strong>left</strong> item (Item 1)<br />
+                    <input name="rating" id="right" type="radio" value="0"
+                    />&nbsp;The <strong>right</strong> item (Item 2)<br />
+            </div>
+        </div>
+
+        <div style="text-align:center; width: 100%; padding: 10px;">
+            <button id="submit">Submit</button>
+            <br/><br/>
+        </div>
+    </form>
 
     <hr>
 
@@ -51,15 +58,6 @@
 <script>
     $(function(){
         $('body').css("padding-top", "0px");
-
-        $('#submit').click(function(){
-            if ($('#left').is(":checked")){
-                window.location = "{% url 'vote' project.id item1.id item2.id 1 %}"
-            }
-            else if ($('#right').is(":checked")){
-                window.location = "{% url 'vote' project.id item1.id item2.id 0 %}"
-            }
-        });
     });
 </script>
     

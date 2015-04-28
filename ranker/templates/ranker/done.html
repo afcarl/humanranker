@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block navbar %}
+{% endblock %}
+
+{% block content %}
+    <div style="padding: 20px;" class="text-center">
+        <h3>There are no more items to rate. Thank you!</h3>
+    </div>
+
+    <hr>
+
+    <div style="text-align: center; width: 100%; padding: 10px;">
+        <p>Rater Key: {{ key }}</p>
+        <p># of Individual Ratings: {{ count }}</p>
+    </div>
+    
+
+<script>
+    $(function(){
+        $('body').css("padding-top", "0px");
+    });
+</script>
+    
+
+{% endblock %}
+

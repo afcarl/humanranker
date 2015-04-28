@@ -3,6 +3,7 @@ import numpy as np
 import random
 import csv
 from hashlib import sha1
+from itertools import combinations
 from scipy.optimize import fmin_tnc
 from django.db.models import Q
 from django.http import HttpResponse, HttpResponseRedirect
@@ -413,12 +414,40 @@ def update_model(project_id):
         item.conf = 1.96 * std[ids[item.id]]
         item.save()
 
-def random_pair(project):
+def random_pair(project, judge=None):
     """
     Returns a random pair of items from the given project.
     """
-    items = list(Item.objects.filter(project=project).distinct().order_by("?")[:2])
-    return items[0], items[1]
+    ids = [i.id for i in Item.objects.filter(project=project)]
+    pairs = {p for p in combinations(ids,2)}
+
+    if judge:
+        for r in Rating.objects.filter(judge=judge, project=project):
+            if r.left.id > r.right.id and (r.left.id, r.right.id) in pairs:
+                pairs.remove((r.left.id, r.right.id))
+            elif (r.right.id, r.left.id) in pairs:
+                pairs.remove((r.right.id, r.left.id))
+
+    pairs = list(pairs)
+
+    if len(pairs) > 0:
+        random.shuffle(pairs)
+
+        pair = pairs[0]
+        item1 = Item.objects.get(id=pair[0])
+        item2 = Item.objects.get(id=pair[1])
+
+        if random.random() > 0.5:
+            temp = item1
+            item1 = item2
+            item2 = temp
+
+        return item1, item2
+    else:
+        return None, None
+
+    #items = list(Item.objects.filter(project=project).distinct().order_by("?")[:2])
+    #return items[0], items[1]
 
 def conf_adjacent_pair(project):
     """
@@ -464,26 +493,30 @@ def likert(request, project_id):
     if judge:
         h = judge.get_hashkey()
         count = len(judge.likerts.all())
-        last = Likert.objects.filter(project=project,judge=judge).order_by('-added').first()
-        items = items.exclude(id=last.item.id)
+        done = [l.item.id for l in Likert.objects.filter(project=project,judge=judge)]
+        items = items.exclude(id__in=done).distinct()
+        #last = Likert.objects.filter(project=project,judge=judge).order_by('-added').first()
+        #items = items.exclude(id=last.item.id)
     else:
         ip_pid = str(ip) + "-" + str(project.id)
         h = sha1(ip_pid.encode('utf-8')).hexdigest()[0:10]
         count = 0
 
-    item = items.order_by("?")[0]
+    item = items.order_by("?").first()
 
-    template = loader.get_template('ranker/likert.html')
+    if item:
+        template = loader.get_template('ranker/likert.html')
+    else:
+        template = loader.get_template('ranker/done.html')
+
     context = RequestContext(request, {'project': project,
                                        'item': item,
                                        'key': h,
                                        'count': count})
     return HttpResponse(template.render(context))
 
-
 def rate(request, project_id):
     project = Project.objects.get(id=project_id)
-    item1, item2 = random_pair(project)
 
     ip = request.META.get('REMOTE_ADDR')
     if not ip:
@@ -494,12 +527,18 @@ def rate(request, project_id):
     if judge:
         h = judge.get_hashkey()
         count = len(judge.ratings.all())
+        item1, item2 = random_pair(project, judge)
     else:
         ip_pid = str(ip) + "-" + str(project.id)
         h = sha1(ip_pid.encode('utf-8')).hexdigest()[0:10]
         count = 0
+        item1, item2 = random_pair(project)
 
-    template = loader.get_template('ranker/rate.html')
+    if item1 is not None:
+        template = loader.get_template('ranker/rate.html')
+    else:
+        template = loader.get_template('ranker/done.html')
+
     context = RequestContext(request, {'project': project,
                                        'item1': item1,
                                        'item2': item2,

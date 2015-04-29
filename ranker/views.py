@@ -423,7 +423,7 @@ def random_pair(project, judge=None):
 
     if judge:
         for r in Rating.objects.filter(judge=judge, project=project):
-            if r.left.id > r.right.id and (r.left.id, r.right.id) in pairs:
+            if (r.left.id, r.right.id) in pairs:
                 pairs.remove((r.left.id, r.right.id))
             elif (r.right.id, r.left.id) in pairs:
                 pairs.remove((r.right.id, r.left.id))

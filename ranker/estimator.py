@@ -1,19 +1,24 @@
 from math import exp
 from math import log
+from sys import argv
+import argparse
 import numpy as np
 
-# regularization parameters
+# Regularization Parameters
 item_mean = 0.0
 item_std = 1.0
-
 discrim_mean = 1.0
 discrim_std = 1.0
-
 bias_mean = 4.0
 bias_std = 1.5
-
 prec_mean = 1.0
 prec_std = 1.0
+
+class FakeObject:
+    """
+    A class for simulating the objects returned by Django querysets.
+    """
+    pass
 
 def expz(val):
     """
@@ -36,24 +41,8 @@ def expz(val):
 
 def ll_combined(x, item_ids, judge_ids, pairwise=[], individual=[]):
     """
-    This function computes the loglikelihood of both the individual and pairwise
-    data. 
-    
-    The loglikelihood of the pairwise rating is computed using the following
-    equation:
-        ll_pair = sum_i^n y[i] * log(p[i]) + (1 - y[i]) * log(1 - p[i])
-    assuming the dependent value follows a binomial distribution.
-
-    The loglikelihood of the individual ratings is computed using the following
-    equation:
-        ll_ind = sum_i^n ( (1/2) * log(std_{judge[i]}) - (std_{judge[i]} / 2) 
-                            * (y[i] - bias_{judge[i]} - mean_{item[i]})^2 )
-    assuming a linear model.
-
-    This function returns the loglikelihood of all of the data as the sum of
-    the two loglikelihood functions (i.e., ll_pair + ll_ind), where the item
-    parameters are shared across both models. Additionally, the system adds a
-    regularization term based on the global regularization values.
+    This function computes the _negative_ loglikelihood of both the individual
+    and pairwise data. 
 
     Keyword arguments:
     x -- the current parameter estimates.
@@ -62,195 +51,155 @@ def ll_combined(x, item_ids, judge_ids, pairwise=[], individual=[]):
     pairwise -- an iterator for the pairwise ratings
     individual -- an iterator for the individual ratings
 
+    Without any ratings the model will return a likelihood based solely on the
+    regularization parameters. 
     >>> ll_combined([0,0,1,1,3,1], [0,1], [0], [], [])
     4.0
     """
-    ids = {i:idx for idx, i in enumerate(item_ids)}
-    discids = {i:idx + len(ids) for idx, i in enumerate(judge_ids)}
-    biasids = {i:idx + len(ids) + len(discids) for idx, i in enumerate(judge_ids)}
-    precids = {i:idx + len(ids) + 2*len(discids) for idx, i in enumerate(judge_ids)}
-    ratings = pairwise
-    likerts = individual
+    item_val = {i:idx for idx, i in enumerate(item_ids)}
+    discrim = {i:idx + len(item_val) for idx, i in enumerate(judge_ids)}
+    bias = {i:idx + len(item_val) + len(judge_ids) for idx, i in enumerate(judge_ids)}
+    precision = {i:idx + len(item_val) + 2*len(judge_ids) for idx, i in enumerate(judge_ids)}
 
     ll = 0.0
-    for r in ratings:
-        left = x[ids[r.left.id]]
-        right = x[ids[r.right.id]]
-        d = x[discids[r.judge.id]]
+    for r in pairwise:
+        left = x[item_val[r.left.id]]
+        right = x[item_val[r.right.id]]
+        d = x[discrim[r.judge.id]]
 
         y = r.value
         z = d * (left - right)
         p = 1 / (1 + expz(-1 * z))
         ll += y * log(p) + (1 - y) * log(1 - p)
 
-    for l in likerts:
-        u = x[ids[l.item.id]]
-        b = x[biasids[l.judge.id]]
-        p = x[precids[l.judge.id]]
-        #n = sqrt(1/p)
+    for l in individual:
+        u = x[item_val[l.item.id]]
+        b = x[bias[l.judge.id]]
+        p = x[precision[l.judge.id]]
 
         ll += (1/2)*log(p) - (p * ((l.value - b - u) * (l.value - b - u)) / 2)
 
     # Regularization
     # Normal prior on means
     item_reg = 0.0
-    for i in ids:
-        diff = x[ids[i]] - item_mean
+    for i in item_val:
+        diff = x[item_val[i]] - item_mean
         item_reg += diff * diff
     item_reg = (-1.0 / (2 * item_std * item_std)) * item_reg
 
     # Normal prior on discriminations
     judge_reg = 0.0
-    for i in discids:
-        diff = x[discids[i]] - discrim_mean
+    for i in discrim:
+        diff = x[discrim[i]] - discrim_mean
         judge_reg += diff * diff
     judge_reg = ((-1.0 / (2 * discrim_std * discrim_std))
                  * judge_reg)
 
     # Normal prior on bias
     bias_reg = 0.0
-    for i in biasids:
-        diff = x[biasids[i]] - bias_mean
+    for i in bias:
+        diff = x[bias[i]] - bias_mean
         bias_reg += diff * diff
     bias_reg = ((-1.0 / (2 * bias_std * bias_std))
                           * bias_reg)
 
     # Normal prior on precision
     prec_reg = 0.0
-    for i in precids:
-        diff = x[precids[i]] - prec_mean
+    for i in precision:
+        diff = x[precision[i]] - prec_mean
         prec_reg += diff * diff
     prec_reg = ((-1.0 / (2 * prec_std * prec_std))
                             * prec_reg)
 
     return -1.0 * (ll + item_reg + judge_reg + bias_reg + prec_reg)
 
-def ll_combined_grad(x, *args):
-    ids = {i:idx for idx, i in enumerate(args[0])}
-    discids = {i:idx + len(ids) for idx, i in enumerate(args[1])}
-    biasids = {i:idx + len(ids) + len(discids) for idx, i in enumerate(args[1])}
-    precids = {i:idx + len(ids) + 2*len(discids) for idx, i in enumerate(args[1])}
-    ratings = args[2]
-    likerts = args[3]
-    #ratings = Rating.objects.filter(Q(left__in=ids)|Q(right__in=ids))
+def ll_combined_grad(x, item_ids, judge_ids, pairwise=[], individual=[]):
+    """
+    This function computes the _negative_ gradient of the loglikelihood for
+    each parameter in x, for both the individual and pairwise data. 
+    
+    Keyword arguments:
+    x -- the current parameter estimates.
+    item_ids -- the ids of the items being evaluated
+    judge_ids -- the ids of the judges being evaluted
+    pairwise -- an iterator for the pairwise ratings
+    individual -- an iterator for the individual ratings
+
+    >>> ll_combined_grad([0,0,1,1,3,1], [0,1], [0], [], [])
+    array([-0.        , -0.        , -0.        , -1.33333333,  2.        , -0.        ])
+    """
+    item_val = {i:idx for idx, i in enumerate(item_ids)}
+    discrim = {i:idx + len(item_val) for idx, i in enumerate(judge_ids)}
+    bias = {i:idx + len(item_val) + len(judge_ids) for idx, i in enumerate(judge_ids)}
+    precision = {i:idx + len(item_val) + 2*len(judge_ids) for idx, i in enumerate(judge_ids)}
 
     grad = np.array([0.0 for v in x])
-    for r in ratings:
-        left = x[ids[r.left.id]]
-        right = x[ids[r.right.id]]
-        d = x[discids[r.judge.id]]
+    for r in pairwise:
+        left = x[item_val[r.left.id]]
+        right = x[item_val[r.right.id]]
+        d = x[discrim[r.judge.id]]
         y = r.value
         p = 1.0 / (1.0 + expz(-1 * d * (left-right)))
 
         g = y - p 
-        grad[ids[r.left.id]] += d * g
-        grad[ids[r.right.id]] += -1 * d * g
-        grad[discids[r.judge.id]] += (left - right) * g
+        grad[item_val[r.left.id]] += d * g
+        grad[item_val[r.right.id]] += -1 * d * g
+        grad[discrim[r.judge.id]] += (left - right) * g
 
-    for l in likerts:
-        u = x[ids[l.item.id]]
-        b = x[biasids[l.judge.id]]
-        prec = x[precids[l.judge.id]]
+    for l in individual:
+        u = x[item_val[l.item.id]]
+        b = x[bias[l.judge.id]]
+        prec = x[precision[l.judge.id]]
         #n = sqrt(1/prec)
 
         error = (l.value - b - u)
-        grad[ids[l.item.id]] += prec * error
-        grad[biasids[l.judge.id]] += prec * error
-        grad[precids[l.judge.id]] += (1 / (2 * prec)) - (error * error)/2
+        grad[item_val[l.item.id]] += prec * error
+        grad[bias[l.judge.id]] += prec * error
+        grad[precision[l.judge.id]] += (1 / (2 * prec)) - (error * error)/2
 
     # Regularization
     # Normal prior on means
     item_reg = np.array([0.0 for v in x])
-    for i in ids:
-        item_reg[ids[i]] += (x[ids[i]] - item_mean)
+    for i in item_val:
+        item_reg[item_val[i]] += (x[item_val[i]] - item_mean)
     item_reg = (-1.0 / (item_std * item_std)) * item_reg
 
     # Normal prior on discriminations
     judge_reg = np.array([0.0 for v in x])
-    for i in discids:
-        judge_reg[discids[i]] += (x[discids[i]] - discrim_mean)
+    for i in discrim:
+        judge_reg[discrim[i]] += (x[discrim[i]] - discrim_mean)
     judge_reg = (-1.0 / (discrim_std * discrim_std)) * judge_reg
 
     # Normal prior on bias
     bias_reg = np.array([0.0 for v in x])
-    for i in biasids:
-        bias_reg[biasids[i]] += (x[biasids[i]] - bias_mean)
+    for i in bias:
+        bias_reg[bias[i]] += (x[bias[i]] - bias_mean)
     bias_reg = (-1.0 / (bias_std * bias_std)) * bias_reg
 
     # Normal prior on noise
     prec_reg = np.array([0.0 for v in x])
-    for i in precids:
-        prec_reg[precids[i]] += (x[precids[i]] - prec_mean)
+    for i in precision:
+        prec_reg[precision[i]] += (x[precision[i]] - prec_mean)
     prec_reg = (-1.0 / (prec_std * prec_std)) * prec_reg
 
     return -1 * (grad + item_reg + judge_reg + bias_reg + prec_reg)
 
-def ll_2p(x, *args):
-    ids = {i:idx for idx, i in enumerate(args[0])}
-    jids = {i:idx + len(ids) for idx, i in enumerate(args[1])}
-    ratings = args[2]
-    #ratings = Rating.objects.filter(Q(left__in=ids)|Q(right__in=ids))
+if __name__ == "__main__":
 
-    ll = 0.0
-    for r in ratings:
-        left = x[ids[r.left.id]]
-        right = x[ids[r.right.id]]
-        d = x[jids[r.judge.id]]
+    parser = argparse.ArgumentParser(description='Estimate item parameters from individual and pairwise ratings.')
+    parser.add_argument('-i', nargs=1, metavar='<individual-ratings.csv>',
+                        required=False, type=argparse.FileType('r'), help='the individual ratings file')
+    parser.add_argument('-p', nargs=1, metavar='<pairwise-ratings.csv>',
+                        required=False, type=argparse.FileType('r'), help='the pairwise ratings file')
 
-        y = r.value
-        z = d * (left - right)
-        p = 1 / (1 + expz(-1 * z))
-        ll += y * log(p) + (1 - y) * log(1 - p)
+    parser.add_argument('-o', nargs=1, metavar='<output filename>',
+                        required=False, type=argparse.FileType('w'), default="item_estimates.csv",
+                        help='The filename where the estimates should be saved (default="item_estimates.csv").') 
+    
+    argsdata = parser.parse_args()
 
-    # Regularization
-    # Normal prior on means
-    item_reg = 0.0
-    for i in ids:
-        diff = x[ids[i]] - item_mean
-        item_reg += diff * diff
-    item_reg = (-1.0 / (2 * item_std * item_std)) * item_reg
-
-    # Normal prior on discriminations
-    judge_reg = 0.0
-    for i in jids:
-        diff = x[jids[i]] - discrim_mean
-        judge_reg += diff * diff
-    judge_reg = ((-1.0 / (2 * discrim_std * discrim_std))
-                 * judge_reg)
-
-    return -1.0 * (ll + item_reg + judge_reg)
-
-def ll_2p_grad(x, *args):
-    ids = {i:idx for idx, i in enumerate(args[0])}
-    jids = {i:idx + len(ids) for idx, i in enumerate(args[1])}
-    ratings = args[2]
-    #ratings = Rating.objects.filter(Q(left__in=ids)|Q(right__in=ids))
-
-    grad = np.array([0.0 for v in x])
-    for r in ratings:
-        left = x[ids[r.left.id]]
-        right = x[ids[r.right.id]]
-        d = x[jids[r.judge.id]]
-        y = r.value
-        p = 1.0 / (1.0 + expz(-1 * d * (left-right)))
-
-        g = y - p 
-        grad[ids[r.left.id]] += d * g
-        grad[ids[r.right.id]] += -1 * d * g
-        grad[jids[r.judge.id]] += (left - right) * g
-
-    # Regularization
-    # Normal prior on means
-    item_reg = np.array([0.0 for v in x])
-    for i in ids:
-        item_reg[ids[i]] += (x[ids[i]] - item_mean)
-    item_reg = (-1.0 / (item_std * item_std)) * item_reg
-
-    # Gamma prior on discriminations
-    judge_reg = np.array([0.0 for v in x])
-    for i in jids:
-        judge_reg[jids[i]] += (x[jids[i]] - discrim_mean)
-    judge_reg = (-1.0 / (discrim_std * discrim_std)) * judge_reg
-
-    return -1 * (grad + item_reg + judge_reg)
+    print(argsdata.i)
+    print(argsdata.p)
+    print(argsdata.o)
+    
 

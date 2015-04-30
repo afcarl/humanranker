@@ -1,7 +1,7 @@
-from math import exp, log, sqrt
-import numpy as np
 import random
 import csv
+import numpy as np
+
 from hashlib import sha1
 from itertools import combinations
 from scipy.optimize import fmin_tnc
@@ -14,6 +14,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login
 from django.contrib import messages
 from django.shortcuts import render
+
 #from django.core.files.uploadedfile import SimpleUploadedFile
 #from django.contrib.auth.models import User
 #from sklearn import linear_model
@@ -26,22 +27,13 @@ from ranker.models import Likert
 from ranker.forms import UserCreateForm
 from ranker.forms import ProjectForm
 from ranker.forms import ProjectUpdateForm
-
-# regularization parameters
-item_mean = 0.0
-item_std = 1.0
-
-discrim_mean = 1.0
-discrim_std = 1.0
-
-bias_mean = 4.0
-bias_std = 1.5
-
-#noise_mean = 1.0
-#noise_std = 1 - sqrt(0.5) # produces a discrimination of mean 1 std 1
-
-prec_mean = 1.0
-prec_std = 1.0
+from ranker.estimator import ll_combined
+from ranker.estimator import ll_combined_grad
+from ranker.estimator import expz
+from ranker.estimator import item_std
+from ranker.estimator import discrim_std
+from ranker.estimator import bias_std
+from ranker.estimator import prec_std
 
 def register(request):
     if request.method == 'POST':
@@ -113,204 +105,6 @@ def view_project(request, project_id):
                                        'judges': judges})
 
     return HttpResponse(template.render(context))
-
-def expz(val):
-    if val > 12:
-        val = 12
-    elif val < -12:
-        val = -12
-    return exp(val)
-
-def ll_combined(x, *args):
-    ids = {i:idx for idx, i in enumerate(args[0])}
-    discids = {i:idx + len(ids) for idx, i in enumerate(args[1])}
-    biasids = {i:idx + len(ids) + len(discids) for idx, i in enumerate(args[1])}
-    precids = {i:idx + len(ids) + 2*len(discids) for idx, i in enumerate(args[1])}
-    ratings = args[2]
-    likerts = args[3]
-    #ratings = Rating.objects.filter(Q(left__in=ids)|Q(right__in=ids))
-
-    ll = 0.0
-    for r in ratings:
-        left = x[ids[r.left.id]]
-        right = x[ids[r.right.id]]
-        d = x[discids[r.judge.id]]
-
-        y = r.value
-        z = d * (left - right)
-        p = 1 / (1 + expz(-1 * z))
-        ll += y * log(p) + (1 - y) * log(1 - p)
-
-    for l in likerts:
-        u = x[ids[l.item.id]]
-        b = x[biasids[l.judge.id]]
-        p = x[precids[l.judge.id]]
-        #n = sqrt(1/p)
-
-        ll += (1/2)*log(p) - (p * ((l.value - b - u) * (l.value - b - u)) / 2)
-
-    # Regularization
-    # Normal prior on means
-    item_reg = 0.0
-    for i in ids:
-        diff = x[ids[i]] - item_mean
-        item_reg += diff * diff
-    item_reg = (-1.0 / (2 * item_std * item_std)) * item_reg
-
-    # Normal prior on discriminations
-    judge_reg = 0.0
-    for i in discids:
-        diff = x[discids[i]] - discrim_mean
-        judge_reg += diff * diff
-    judge_reg = ((-1.0 / (2 * discrim_std * discrim_std))
-                 * judge_reg)
-
-    # Normal prior on bias
-    bias_reg = 0.0
-    for i in biasids:
-        diff = x[biasids[i]] - bias_mean
-        bias_reg += diff * diff
-    bias_reg = ((-1.0 / (2 * bias_std * bias_std))
-                          * bias_reg)
-
-    # Normal prior on precision
-    prec_reg = 0.0
-    for i in precids:
-        diff = x[precids[i]] - prec_mean
-        prec_reg += diff * diff
-    prec_reg = ((-1.0 / (2 * prec_std * prec_std))
-                            * prec_reg)
-
-    return -1.0 * (ll + item_reg + judge_reg + bias_reg + prec_reg)
-
-def ll_combined_grad(x, *args):
-    ids = {i:idx for idx, i in enumerate(args[0])}
-    discids = {i:idx + len(ids) for idx, i in enumerate(args[1])}
-    biasids = {i:idx + len(ids) + len(discids) for idx, i in enumerate(args[1])}
-    precids = {i:idx + len(ids) + 2*len(discids) for idx, i in enumerate(args[1])}
-    ratings = args[2]
-    likerts = args[3]
-    #ratings = Rating.objects.filter(Q(left__in=ids)|Q(right__in=ids))
-
-    grad = np.array([0.0 for v in x])
-    for r in ratings:
-        left = x[ids[r.left.id]]
-        right = x[ids[r.right.id]]
-        d = x[discids[r.judge.id]]
-        y = r.value
-        p = 1.0 / (1.0 + expz(-1 * d * (left-right)))
-
-        g = y - p 
-        grad[ids[r.left.id]] += d * g
-        grad[ids[r.right.id]] += -1 * d * g
-        grad[discids[r.judge.id]] += (left - right) * g
-
-    for l in likerts:
-        u = x[ids[l.item.id]]
-        b = x[biasids[l.judge.id]]
-        prec = x[precids[l.judge.id]]
-        #n = sqrt(1/prec)
-
-        error = (l.value - b - u)
-        grad[ids[l.item.id]] += prec * error
-        grad[biasids[l.judge.id]] += prec * error
-        grad[precids[l.judge.id]] += (1 / (2 * prec)) - (error * error)/2
-
-    # Regularization
-    # Normal prior on means
-    item_reg = np.array([0.0 for v in x])
-    for i in ids:
-        item_reg[ids[i]] += (x[ids[i]] - item_mean)
-    item_reg = (-1.0 / (item_std * item_std)) * item_reg
-
-    # Normal prior on discriminations
-    judge_reg = np.array([0.0 for v in x])
-    for i in discids:
-        judge_reg[discids[i]] += (x[discids[i]] - discrim_mean)
-    judge_reg = (-1.0 / (discrim_std * discrim_std)) * judge_reg
-
-    # Normal prior on bias
-    bias_reg = np.array([0.0 for v in x])
-    for i in biasids:
-        bias_reg[biasids[i]] += (x[biasids[i]] - bias_mean)
-    bias_reg = (-1.0 / (bias_std * bias_std)) * bias_reg
-
-    # Normal prior on noise
-    prec_reg = np.array([0.0 for v in x])
-    for i in precids:
-        prec_reg[precids[i]] += (x[precids[i]] - prec_mean)
-    prec_reg = (-1.0 / (prec_std * prec_std)) * prec_reg
-
-    return -1 * (grad + item_reg + judge_reg + bias_reg + prec_reg)
-
-def ll_2p(x, *args):
-    ids = {i:idx for idx, i in enumerate(args[0])}
-    jids = {i:idx + len(ids) for idx, i in enumerate(args[1])}
-    ratings = args[2]
-    #ratings = Rating.objects.filter(Q(left__in=ids)|Q(right__in=ids))
-
-    ll = 0.0
-    for r in ratings:
-        left = x[ids[r.left.id]]
-        right = x[ids[r.right.id]]
-        d = x[jids[r.judge.id]]
-
-        y = r.value
-        z = d * (left - right)
-        p = 1 / (1 + expz(-1 * z))
-        ll += y * log(p) + (1 - y) * log(1 - p)
-
-    # Regularization
-    # Normal prior on means
-    item_reg = 0.0
-    for i in ids:
-        diff = x[ids[i]] - item_mean
-        item_reg += diff * diff
-    item_reg = (-1.0 / (2 * item_std * item_std)) * item_reg
-
-    # Normal prior on discriminations
-    judge_reg = 0.0
-    for i in jids:
-        diff = x[jids[i]] - discrim_mean
-        judge_reg += diff * diff
-    judge_reg = ((-1.0 / (2 * discrim_std * discrim_std))
-                 * judge_reg)
-
-    return -1.0 * (ll + item_reg + judge_reg)
-
-def ll_2p_grad(x, *args):
-    ids = {i:idx for idx, i in enumerate(args[0])}
-    jids = {i:idx + len(ids) for idx, i in enumerate(args[1])}
-    ratings = args[2]
-    #ratings = Rating.objects.filter(Q(left__in=ids)|Q(right__in=ids))
-
-    grad = np.array([0.0 for v in x])
-    for r in ratings:
-        left = x[ids[r.left.id]]
-        right = x[ids[r.right.id]]
-        d = x[jids[r.judge.id]]
-        y = r.value
-        p = 1.0 / (1.0 + expz(-1 * d * (left-right)))
-
-        g = y - p 
-        grad[ids[r.left.id]] += d * g
-        grad[ids[r.right.id]] += -1 * d * g
-        grad[jids[r.judge.id]] += (left - right) * g
-
-    # Regularization
-    # Normal prior on means
-    item_reg = np.array([0.0 for v in x])
-    for i in ids:
-        item_reg[ids[i]] += (x[ids[i]] - item_mean)
-    item_reg = (-1.0 / (item_std * item_std)) * item_reg
-
-    # Gamma prior on discriminations
-    judge_reg = np.array([0.0 for v in x])
-    for i in jids:
-        judge_reg[jids[i]] += (x[jids[i]] - discrim_mean)
-    judge_reg = (-1.0 / (discrim_std * discrim_std)) * judge_reg
-
-    return -1 * (grad + item_reg + judge_reg)
 
 def update_model(project_id):
     project = Project.objects.get(id=project_id)
@@ -399,11 +193,8 @@ def update_model(project_id):
     # regularization terms
     for i,v in enumerate(d2ll):
         d2ll[i] += len(ids) / (item_std * item_std) 
-        
         d2ll[i] += (len(discids) / (discrim_std * discrim_std))
-
         d2ll[i] += (len(biasids) / (bias_std * bias_std))
-
         d2ll[i] += (len(precids) / (prec_std * prec_std))
     #print(d2ll)
 

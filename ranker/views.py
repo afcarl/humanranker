@@ -530,7 +530,7 @@ def export_ratings(request, project_id):
     writer = csv.writer(response)
     writer.writerow(['rating_id', 'left_item_id', 'right_item_id',
                      'left_item_name', 'right_item_name',
-                     'rating_value (left=1)', 'judge_id', 'judge_hash'])
+                     'rating_value', 'judge_id', 'judge_hash'])
     for r in ratings:
         writer.writerow([r.id, r.left.id, r.right.id, r.left.name,
                          r.right.name, r.value, r.judge.id,
@@ -553,7 +553,7 @@ def export_likerts(request, project_id):
 
     writer = csv.writer(response)
     writer.writerow(['likert_id', 'item_id', 'item_name', 
-                     'rating_value (5=strongly agree, 1=strongly disagree)', 
+                     'rating_value', 
                      'judge_id', 'judge_hash'])
     for l in likerts:
         writer.writerow([l.id, l.item.id, l.item.name, 

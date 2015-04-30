@@ -140,25 +140,6 @@ def update_model(project_id):
                       bounds=bounds,
                       disp=False)[0]
 
-    ######## 2PL #############
-    #x0 = [item.mean for item in items] + [judge.discrimination for judge in judges]
-    ##x0 = [2 * (random.random() - 0.5) for item in items] + [3 * random.random() for judge in judges]
-    ##x0 = [0.0 for item in items] + [1.0 for judge in judges]
-
-    ## Check the gradient calculation
-    #print(check_grad(ll_2p, ll_2p_grad, x0, tuple(ids), tuple(jids),
-    #                                         ratings))
-
-    ## Truncated Newton
-    #bounds = [('-inf','inf') for v in ids] + [(0.001,'inf') for v in jids]
-    #result = fmin_tnc(ll_2p, x0, 
-    #                  #approx_grad=True,
-    #                  fprime=ll_2p_grad, 
-    #                  args=(tuple(jids), tuple(ids), ratings), bounds=bounds,
-    #                  disp=False)[0]
-    ##########################
-    #print(result)
-
     ids = {i: idx for idx, i in enumerate(ids)}
     discids = {i: idx + len(ids) for idx, i in enumerate(jids)}
     biasids = {i: idx + len(ids) + len(jids) for idx, i in enumerate(jids)}
@@ -193,9 +174,11 @@ def update_model(project_id):
     # regularization terms
     for i,v in enumerate(d2ll):
         d2ll[i] += len(ids) / (item_std * item_std) 
-        d2ll[i] += (len(discids) / (discrim_std * discrim_std))
-        d2ll[i] += (len(biasids) / (bias_std * bias_std))
-        d2ll[i] += (len(precids) / (prec_std * prec_std))
+
+        #these shouldn't get included in item parameter estimates.
+        #d2ll[i] += (len(discids) / (discrim_std * discrim_std))
+        #d2ll[i] += (len(biasids) / (bias_std * bias_std))
+        #d2ll[i] += (len(precids) / (prec_std * prec_std))
     #print(d2ll)
 
     std = 1.0 / np.sqrt(d2ll)

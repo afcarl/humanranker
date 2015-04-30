@@ -1,38 +1,46 @@
-import sys, os
-sys.path.append("/Users/cmaclell/Projects/pairwise/pairwise")
-sys.path.append("/Users/cmaclell/Projects/pairwise/")
-os.environ['DJANGO_SETTINGS_MODULE'] = 'settings'
-
-from views import ll_2p, ll_2p_grad, expz, item_std, judge_std
-from scipy.optimize import fmin_tnc
 import random
 import math
-from scipy.stats import spearmanr
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.stats import spearmanr
+from scipy.optimize import fmin_tnc
 
-class Foo:
-    pass
+from estimator import ll_combined
+from estimator import ll_combined_grad
+from estimator import expz
+from estimator import item_std
+from estimator import discrim_std
+from estimator import bias_std
+from estimator import prec_std
+from estimator import FakeObject
 
-def random_evaluate(judge, left_item, right_item):
+def random_choice(judge, left_item, right_item):
     return random.choice([0,1]) 
 
-def perfect_evaluate(judge, left_item, right_item):
+def perfect_choice(judge, left_item, right_item):
     if left_item.value > right_item.value:
         return 1.0
     else:
         return 0.0
 
-def noisy_evaluate(judge, left_item, right_item):
+def noisy_choice(judge, left_item, right_item):
     prob_correct = 1.0 / (1.0 + expz(-judge.value * (left_item.value - right_item.value)))
     r = random.random()
-    #print("Probability of correct:", prob_correct, r)
     if r <= prob_correct:
         return 1.0
     else:
         return 0.0
 
-def random_rate(items):
+def random_judgement(judge, item):
+    return random.choice([1,2,3,4,5,6,7])
+
+def perfect_judgement(judge, item):
+    return 3.0
+
+def noisy_judgement(judge, item):
+    return 3.0
+
+def random_pair(items):
     items = [i for i in items]
     random.shuffle(items)
     return items[0:2]
@@ -69,14 +77,13 @@ def conf_rate(items):
 
 def simulate(num_runs, num_items, num_judges, num_ratings, decision_fn, rate_fn):
 
-    reliability = [[] for i in range(num_ratings)]
-    #reliability = np.array([0.0 for i in range(num_runs)])
+    accuracy = [[] for i in range(num_ratings)]
 
     for run in range(num_runs):
         items = []
         ids = []
         for i in range(num_items):
-            item = Foo()
+            item = FakeObject()
             item.id = i
             item.value = random.normalvariate(0,1)
             #item.value = random.uniform(-100,100)
@@ -86,7 +93,7 @@ def simulate(num_runs, num_items, num_judges, num_ratings, decision_fn, rate_fn)
         judges = []
         jids = []
         for i in range(num_judges):
-            judge = Foo()
+            judge = FakeObject()
             judge.id = i
             judge.value = max(0.001, random.normalvariate(1,1))
             #judge.value = 7 
@@ -98,16 +105,23 @@ def simulate(num_runs, num_items, num_judges, num_ratings, decision_fn, rate_fn)
 
         # generate ratings
         ratings = []
-        run_reliability = []
+        run_accuracy = []
         for i in range(num_ratings):
 
-            x0 = [0.0 for item in items] + [1.0 for judge in judges]
-            bounds = [('-inf','inf') for v in ids] + [(0.001,'inf') for v in jids]
-            result = fmin_tnc(ll_2p, x0, 
+            x0 = [0.0 for item in items] 
+            x0 += [1.0 for judge in judges]
+            x0 += [0.0 for judge in judges]
+            x0 += [0.0 for judge in judges]
+            bounds = [('-inf','inf') for v in ids] 
+            bounds += [(0.001,'inf') for v in jids]
+            bounds += [('-inf','inf') for v in jids]
+            bounds += [(0.001,'inf') for v in jids]
+            
+            result = fmin_tnc(ll_combined, x0, 
                               #approx_grad=True,
-                              fprime=ll_2p_grad, 
-                              args=(tuple(jids), tuple(ids), ratings), bounds=bounds,
-                              disp=False)[0]
+                              fprime=ll_combined_grad, 
+                               args=(tuple(ids), tuple(jids), ratings, []),
+                              bounds=bounds, disp=False)[0]
 
             
             for item in items:
@@ -137,7 +151,7 @@ def simulate(num_runs, num_items, num_judges, num_ratings, decision_fn, rate_fn)
                 d2ll[i] += len(ids) / (item_std * item_std) 
                 
                 if len(result) > len(items):
-                    d2ll[i] += len(jids) / (judge_std * judge_std)
+                    d2ll[i] += len(jids) / (discrim_std * discrim_std)
             #print(d2ll)
 
             std = 1.0 / np.sqrt(d2ll)
@@ -151,11 +165,11 @@ def simulate(num_runs, num_items, num_judges, num_ratings, decision_fn, rate_fn)
 
             r = spearmanr(actual,predicted)[0]
             if math.isnan(r):
-                run_reliability.append(0.0)
+                run_accuracy.append(0.0)
             else:
-                run_reliability.append(r)
+                run_accuracy.append(r)
 
-            r = Foo()
+            r = FakeObject()
             r.left, r.right = rate_fn(items)
             r.judge = random.choice(judges)
             r.value = r.judge.decision_fn(r.judge, r.left, r.right)
@@ -174,39 +188,25 @@ def simulate(num_runs, num_items, num_judges, num_ratings, decision_fn, rate_fn)
             #        r.judge.cache[fz] = r.right
             ratings.append(r)
 
-        for idx, v in enumerate(run_reliability):
-            reliability[idx].append(v)
+        for idx, v in enumerate(run_accuracy):
+            accuracy[idx].append(v)
         #reliability += np.array(run_reliability)
 
     #reliability /= num_runs
 
-    return reliability
+    return accuracy
 
 
 if __name__ == "__main__":
 
-    num_runs = 20 
+    num_runs = 5 
     num_items = 40
     num_judges = 5 
-    num_ratings = 50 
-
-    # CONF INIT
-    reliability_conf = simulate(num_runs, num_items, num_judges, num_ratings,
-                           noisy_evaluate, conf_rate)
-
-    rel_conf_mean = [np.mean(np.array(l)) for l in reliability_conf]
-    rel_conf_lower = [rel_conf_mean[idx] - 1.96 * np.std(np.array(l)) for idx, l in
-                     enumerate(reliability_conf)]
-    rel_conf_upper = [rel_conf_mean[idx] + 1.96 * np.std(np.array(l)) for idx, l in
-                     enumerate(reliability_conf)]
-    plt.fill_between([i for i in range(num_ratings)], rel_conf_lower,
-                     rel_conf_upper, alpha=0.5, facecolor="green")
-    plt.plot([i for i in range(num_ratings)], rel_conf_mean,
-             label="Overlapping Confidence Pairs", color="green")
+    num_ratings = 200 
 
     # RANDOM
     reliability_random = simulate(num_runs, num_items, num_judges, num_ratings,
-                           noisy_evaluate, random_rate)
+                           noisy_choice, random_pair)
     rel_random_mean = [np.mean(np.array(l)) for l in reliability_random]
     rel_random_lower = [rel_random_mean[idx] - 1.96 * np.std(np.array(l)) for idx, l in
                      enumerate(reliability_random)]
@@ -215,11 +215,11 @@ if __name__ == "__main__":
     plt.fill_between([i for i in range(num_ratings)], rel_random_lower,
                      rel_random_upper, alpha=0.5, facecolor="blue")
     plt.plot([i for i in range(num_ratings)], rel_random_mean,
-             label="Random Pairs", color="blue")
+             label="Pairwise Rating", color="blue")
 
     plt.title("Simulated Accuracy for " + str(num_items) + " Items and " +
               str(num_judges) + " Judges (Avg of " + str(num_runs) + " Runs)")
-    plt.xlabel("# of pairwise comparisons")
+    plt.xlabel("# of ratings")
     plt.ylabel("Spearman's Rank Correlation Coefficient")
     plt.legend(loc=4)
     plt.show()

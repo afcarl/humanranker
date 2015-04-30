@@ -323,9 +323,11 @@ if __name__ == "__main__":
     # regularization terms
     for i,v in enumerate(d2ll):
         d2ll[i] += len(items) / (item_std * item_std) 
-        d2ll[i] += (len(judges) / (discrim_std * discrim_std))
-        d2ll[i] += (len(judges) / (bias_std * bias_std))
-        d2ll[i] += (len(judges) / (prec_std * prec_std))
+
+        #these shouldn't get included because they don't impact d2ll[i].
+        #d2ll[i] += (len(judges) / (discrim_std * discrim_std))
+        #d2ll[i] += (len(judges) / (bias_std * bias_std))
+        #d2ll[i] += (len(judges) / (prec_std * prec_std))
     #print(d2ll)
 
     std = 1.0 / np.sqrt(d2ll)

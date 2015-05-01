@@ -30,9 +30,13 @@ from ranker.forms import ProjectUpdateForm
 from ranker.estimator import ll_combined
 from ranker.estimator import ll_combined_grad
 from ranker.estimator import expz
+from ranker.estimator import item_mean
 from ranker.estimator import item_std
+from ranker.estimator import discrim_mean
 from ranker.estimator import discrim_std
+from ranker.estimator import bias_mean
 from ranker.estimator import bias_std
+from ranker.estimator import prec_mean
 from ranker.estimator import prec_std
 
 def register(request):
@@ -115,10 +119,14 @@ def update_model(project_id):
     ratings = Rating.objects.filter(Q(left__in=ids)|Q(right__in=ids)).distinct()
     likerts = Likert.objects.filter(item__in=ids).distinct()
 
-    x0 = [item.mean for item in items] 
-    x0 += [judge.discrimination for judge in judges]
-    x0 += [judge.bias for judge in judges]
-    x0 += [judge.precision for judge in judges]
+    #x0 = [item.mean for item in items] 
+    #x0 += [judge.discrimination for judge in judges]
+    #x0 += [judge.bias for judge in judges]
+    #x0 += [judge.precision for judge in judges]
+    x0 = [item_mean for item in items] 
+    x0 += [discrim_mean for judge in judges]
+    x0 += [bias_mean for judge in judges]
+    x0 += [prec_mean for judge in judges]
 
     #print(x0)
     #from scipy.optimize import check_grad, approx_fprime

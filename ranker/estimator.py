@@ -1,3 +1,4 @@
+import random
 from math import exp
 from math import log
 import argparse
@@ -194,7 +195,7 @@ if __name__ == "__main__":
 
     parser.add_argument('-o', nargs=1, metavar='<output filename>',
                         required=False, type=argparse.FileType('w'),
-                        default=["item_estimates.csv"],
+                        default="item_estimates.csv",
                         help='The filename where the estimates should be saved (default="item_estimates.csv").') 
     argsdata = parser.parse_args()
     
@@ -305,6 +306,7 @@ if __name__ == "__main__":
         judges[j].discrimination = result[discrim[j]]
         judges[j].bias = result[bias[j]]
         judges[j].precision = result[precision[j]]
+        #print(j, judges[j].discrimination)
 
     # compute the stds
     d2ll = np.array([0.0 for item in items])
@@ -337,11 +339,14 @@ if __name__ == "__main__":
     for i in items:
         items[i].conf = 1.96 * std[item_val[i]]
 
-    argsdata.o[0].write(",".join(['id', 'name', 'parameter estimate', 
+    if isinstance(argsdata.o, list):
+        argsdata.o = argsdata.o[0]
+
+    argsdata.o.write(",".join(['id', 'name', 'parameter estimate', 
                      '+/- 95% confidence interval']) + "\n")
 
     for i in items:
-        argsdata.o[0].write(",".join([str(i), items[i].name, str(items[i].mean),
+        argsdata.o.write(",".join([str(i), items[i].name, str(items[i].mean),
                                    str(items[i].conf)]) + "\n")
 
     

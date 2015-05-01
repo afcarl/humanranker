@@ -401,25 +401,25 @@ def simulate_combined(num_runs, num_items, num_judges, num_ratings,
 if __name__ == "__main__":
 
     num_runs = 30 
-    num_items = 40
-    num_judges = 15 
-    num_ratings = 2001
-    num_estimations = 20
+    num_items = 100
+    num_judges = 20 
+    num_ratings = 401
+    num_estimations = 10 
 
     estimation_mod = math.trunc(num_ratings / num_estimations)
 
     # individual
-    accuracy_ind = simulate_individual(num_runs, num_items, num_judges, num_ratings,
-                                       estimation_mod, noisy_judgement, random_item)
-    acc_ind_mean = [np.mean(np.array(l)) for l in accuracy_ind]
-    acc_ind_lower = [acc_ind_mean[idx] - 1.96 * np.std(np.array(l)) for idx, l in
-                     enumerate(accuracy_ind)]
-    acc_ind_upper = [acc_ind_mean[idx] + 1.96 * np.std(np.array(l)) for idx, l in
-                     enumerate(accuracy_ind)]
-    plt.fill_between([i * estimation_mod for i in range(num_ratings)], acc_ind_lower,
-                     acc_ind_upper, alpha=0.5, facecolor="blue")
-    plt.plot([i * estimation_mod for i in range(num_ratings)], acc_ind_mean,
-             label="Individual", color="blue")
+    #accuracy_ind = simulate_individual(num_runs, num_items, num_judges, num_ratings,
+    #                                   estimation_mod, noisy_judgement, random_item)
+    #acc_ind_mean = [np.mean(np.array(l)) for l in accuracy_ind]
+    #acc_ind_lower = [acc_ind_mean[idx] - 1.96 * np.std(np.array(l)) for idx, l in
+    #                 enumerate(accuracy_ind)]
+    #acc_ind_upper = [acc_ind_mean[idx] + 1.96 * np.std(np.array(l)) for idx, l in
+    #                 enumerate(accuracy_ind)]
+    #plt.fill_between([i * estimation_mod for i in range(num_ratings)], acc_ind_lower,
+    #                 acc_ind_upper, alpha=0.5, facecolor="blue")
+    #plt.plot([i * estimation_mod for i in range(num_ratings)], acc_ind_mean,
+    #         label="Individual", color="blue")
 
     # pairwise
     accuracy_pairwise = simulate_pairwise(num_runs, num_items, num_judges, num_ratings,
@@ -432,21 +432,21 @@ if __name__ == "__main__":
     plt.fill_between([i * estimation_mod for i in range(num_ratings)], acc_pair_lower,
                      acc_pair_upper, alpha=0.5, facecolor="green")
     plt.plot([i * estimation_mod for i in range(num_ratings)], acc_pair_mean,
-             label="Pairwise Rating", color="green")
+             label="Pairwise", color="green")
 
     # combined 
-    accuracy_combined = simulate_combined(num_runs, num_items, num_judges,
-                                          num_ratings, estimation_mod,
-                           noisy_choice, random_pair, noisy_judgement, random_item)
-    acc_combined_mean = [np.mean(np.array(l)) for l in accuracy_combined]
-    acc_combined_lower = [acc_combined_mean[idx] - 1.96 * np.std(np.array(l)) for idx, l in
-                      enumerate(accuracy_combined)]
-    acc_combined_upper = [acc_combined_mean[idx] + 1.96 * np.std(np.array(l)) for idx, l in
-                     enumerate(accuracy_combined)]
-    plt.fill_between([i * estimation_mod for i in range(num_ratings)], acc_combined_lower,
-                     acc_combined_upper, alpha=0.5, facecolor="red")
-    plt.plot([i * estimation_mod for i in range(num_ratings)], acc_combined_mean,
-             label="Combined Ratings", color="red")
+    #accuracy_combined = simulate_combined(num_runs, num_items, num_judges,
+    #                                      num_ratings, estimation_mod,
+    #                       noisy_choice, random_pair, noisy_judgement, random_item)
+    #acc_combined_mean = [np.mean(np.array(l)) for l in accuracy_combined]
+    #acc_combined_lower = [acc_combined_mean[idx] - 1.96 * np.std(np.array(l)) for idx, l in
+    #                  enumerate(accuracy_combined)]
+    #acc_combined_upper = [acc_combined_mean[idx] + 1.96 * np.std(np.array(l)) for idx, l in
+    #                 enumerate(accuracy_combined)]
+    #plt.fill_between([i * estimation_mod for i in range(num_ratings)], acc_combined_lower,
+    #                 acc_combined_upper, alpha=0.5, facecolor="red")
+    #plt.plot([i * estimation_mod for i in range(num_ratings)], acc_combined_mean,
+    #         label="Combined", color="red")
 
     plt.title("Simulated Accuracy for " + str(num_items) + " Items and " +
               str(num_judges) + " Judges (Avg of " + str(num_runs) + " Runs)")

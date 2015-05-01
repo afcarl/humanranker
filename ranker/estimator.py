@@ -193,7 +193,8 @@ if __name__ == "__main__":
                         required=False, type=argparse.FileType('rU'), help='the pairwise ratings file')
 
     parser.add_argument('-o', nargs=1, metavar='<output filename>',
-                        required=False, type=argparse.FileType('w'), default="item_estimates.csv",
+                        required=False, type=argparse.FileType('w'),
+                        default=["item_estimates.csv"],
                         help='The filename where the estimates should be saved (default="item_estimates.csv").') 
     argsdata = parser.parse_args()
     
@@ -336,11 +337,11 @@ if __name__ == "__main__":
     for i in items:
         items[i].conf = 1.96 * std[item_val[i]]
 
-    argsdata.o.write(",".join(['id', 'name', 'parameter estimate', 
+    argsdata.o[0].write(",".join(['id', 'name', 'parameter estimate', 
                      '+/- 95% confidence interval']) + "\n")
 
     for i in items:
-        argsdata.o.write(",".join([str(i), items[i].name, str(items[i].mean),
+        argsdata.o[0].write(",".join([str(i), items[i].name, str(items[i].mean),
                                    str(items[i].conf)]) + "\n")
 
     

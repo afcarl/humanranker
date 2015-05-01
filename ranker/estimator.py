@@ -6,7 +6,7 @@ from scipy.optimize import fmin_tnc
 
 # Regularization Parameters
 item_mean = 0.0
-item_std = 1.0
+item_std = 1.5
 discrim_mean = 1.0
 discrim_std = 1.0
 bias_mean = 4.0
@@ -188,9 +188,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Estimate item parameters from individual and pairwise ratings.')
     parser.add_argument('-i', nargs=1, metavar='<individual-ratings.csv>',
-                        required=False, type=argparse.FileType('r'), help='the individual ratings file')
+                        required=False, type=argparse.FileType('rU'), help='the individual ratings file')
     parser.add_argument('-p', nargs=1, metavar='<pairwise-ratings.csv>',
-                        required=False, type=argparse.FileType('r'), help='the pairwise ratings file')
+                        required=False, type=argparse.FileType('rU'), help='the pairwise ratings file')
 
     parser.add_argument('-o', nargs=1, metavar='<output filename>',
                         required=False, type=argparse.FileType('w'), default="item_estimates.csv",

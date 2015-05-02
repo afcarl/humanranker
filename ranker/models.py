@@ -38,7 +38,7 @@ class Judge(models.Model):
     precision = models.FloatField(default=1.0)
 
     class Meta:
-        ordering = ['-discrimination']
+        ordering = ['-discrimination', '-precision']
         unique_together = ('ip_address', 'project',)
 
     def get_hashkey(self):

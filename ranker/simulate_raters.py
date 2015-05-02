@@ -403,7 +403,7 @@ if __name__ == "__main__":
     num_runs = 30 
     num_items = 100
     num_judges = 20 
-    num_ratings = 401
+    num_ratings = 501
     num_estimations = 10 
 
     estimation_mod = math.trunc(num_ratings / num_estimations)

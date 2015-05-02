@@ -130,7 +130,7 @@
                 <td style="vertical-align: middle" class="text-center">{{ judge.ratings.all |length }}</a></td>
                 <td style="vertical-align: middle" class="text-center">{{ judge.discrimination|floatformat:"3" }}</td>
                 {% else %}
-                <td style="vertical-align: middle" class="text-center">0</a></td>
+                <td style="vertical-align: middle" class="text-center">--</a></td>
                 <td style="vertical-align: middle" class="text-center">--</td>
                 {% endif %}
                 {% if judge.likerts.all %}
@@ -138,7 +138,7 @@
                 <td style="vertical-align: middle" class="text-center">{{ judge.bias|floatformat:"3" }}</td>
                 <td style="vertical-align: middle" class="text-center">{{ judge.precision|floatformat:"3" }}</td>
                 {% else %}
-                <td style="vertical-align: middle" class="text-center">0</a></td>
+                <td style="vertical-align: middle" class="text-center">--</a></td>
                 <td style="vertical-align: middle" class="text-center">--</td>
                 <td style="vertical-align: middle" class="text-center">--</td>
                 {% endif %}

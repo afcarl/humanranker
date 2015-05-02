@@ -198,35 +198,55 @@ def update_model(project_id):
 
 def random_pair(project, judge=None):
     """
-    Returns a random pair of items from the given project.
+    Returns a random pair of items that the judge has never seen before. 
     """
-    ids = [i.id for i in Item.objects.filter(project=project)]
-    pairs = {p for p in combinations(ids,2)}
+    items = Item.objects.filter(project=project)
 
     if judge:
-        for r in Rating.objects.filter(judge=judge, project=project):
-            if (r.left.id, r.right.id) in pairs:
-                pairs.remove((r.left.id, r.right.id))
-            elif (r.right.id, r.left.id) in pairs:
-                pairs.remove((r.right.id, r.left.id))
+        left_ids = [r.left.id for r in Rating.objects.filter(judge=judge,
+                                                             project=project)]
+        right_ids = [r.right.id for r in Rating.objects.filter(judge=judge,
+                                                             project=project)]
+        ids = left_ids + right_ids
+        items = items.exclude(id__in=ids).distinct()
 
-    pairs = list(pairs)
-
-    if len(pairs) > 0:
-        random.shuffle(pairs)
-
-        pair = pairs[0]
-        item1 = Item.objects.get(id=pair[0])
-        item2 = Item.objects.get(id=pair[1])
-
-        if random.random() > 0.5:
-            temp = item1
-            item1 = item2
-            item2 = temp
-
+    if len(items) > 1:
+        item1, item2 = items.order_by("?")[0:2]
         return item1, item2
     else:
         return None, None
+
+#def random_pair(project, judge=None):
+#    """
+#    Returns a random pair of items from the given project.
+#    """
+#    ids = [i.id for i in Item.objects.filter(project=project)]
+#    pairs = {p for p in combinations(ids,2)}
+#
+#    if judge:
+#        for r in Rating.objects.filter(judge=judge, project=project):
+#            if (r.left.id, r.right.id) in pairs:
+#                pairs.remove((r.left.id, r.right.id))
+#            elif (r.right.id, r.left.id) in pairs:
+#                pairs.remove((r.right.id, r.left.id))
+#
+#    pairs = list(pairs)
+#
+#    if len(pairs) > 0:
+#        random.shuffle(pairs)
+#
+#        pair = pairs[0]
+#        item1 = Item.objects.get(id=pair[0])
+#        item2 = Item.objects.get(id=pair[1])
+#
+#        if random.random() > 0.5:
+#            temp = item1
+#            item1 = item2
+#            item2 = temp
+#
+#        return item1, item2
+#    else:
+#        return None, None
 
     #items = list(Item.objects.filter(project=project).distinct().order_by("?")[:2])
     #return items[0], items[1]

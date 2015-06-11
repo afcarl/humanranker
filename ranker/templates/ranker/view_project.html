@@ -16,6 +16,8 @@
         <tr><td><strong>Pairwise Prompt</strong></td><td>{{ project.pairwise_prompt }}</td></tr>
         <tr><td><strong>Individual Likert Prompt</strong></td><td>{{ project.individual_likert_prompt }}</td></tr>
         <tr><td><strong># of Items</strong></td><td>{{ project.items.all | length }}</td></tr>
+        <tr><td><strong>Likert Offset</strong></td><td>{{ project.likert_mean | floatformat:"3" }}</td></tr>
+        <tr><td><strong>Likert Scaling</strong></td><td>{{ project.likert_scale | floatformat:"3" }}</td></tr>
         </tbody>
     </table>
 
@@ -117,7 +119,7 @@
                 <th class="text-center"># Pairwise Ratings</th>
                 <th class="text-center">Pairwise Discrimination</th>
                 <th class="text-center"># Individual Ratings</th>
-                <th class="text-center">Mean Individual Rating</th>
+                <th class="text-center">Individual Rating Bias</th>
                 <th class="text-center">Individual Discrimination</th>
             </tr>
         </thead>

@@ -128,8 +128,12 @@ def update_model(project_id):
     x0 += [bias_mean for judge in judges]
     x0 += [prec_mean for judge in judges]
 
+    # The parameters linking likert to pairwise (i.e., overall likert mean)
+    x0 += [1.0, 4.0]
+
     #print(x0)
     #from scipy.optimize import check_grad, approx_fprime
+    #from math import sqrt
     #print(check_grad(ll_combined, ll_combined_grad, x0, tuple(ids), tuple(jids),
     #                                         ratings, likerts))
     #print(approx_fprime(x0, ll_combined, sqrt(np.finfo(float).eps), tuple(ids), tuple(jids), ratings,
@@ -140,6 +144,9 @@ def update_model(project_id):
     bounds += [(0.001,'inf') for v in jids]
     bounds += [('-inf','inf') for v in jids]
     bounds += [(0.001,'inf') for v in jids]
+
+    # bounds on likert-pairwise link parameters (i.e, likert mean)
+    bounds += [(0.001, 'inf'), (1.0, 7.0)]
 
     result = fmin_tnc(ll_combined, x0, 
                       #approx_grad=True,
@@ -152,6 +159,10 @@ def update_model(project_id):
     discids = {i: idx + len(ids) for idx, i in enumerate(jids)}
     biasids = {i: idx + len(ids) + len(jids) for idx, i in enumerate(jids)}
     precids = {i: idx + len(ids) + 2 * len(jids) for idx, i in enumerate(jids)}
+
+    project.likert_mean = result[-1]
+    project.likert_scale = result[-2]
+    project.save()
 
     for item in items:
         item.mean = result[ids[item.id]]

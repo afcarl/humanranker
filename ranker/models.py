@@ -23,6 +23,8 @@ class Project(models.Model):
     likert_label_5 = models.CharField(max_length=200)
     likert_label_6 = models.CharField(max_length=200)
     likert_label_7 = models.CharField(max_length=200)
+    likert_mean = models.FloatField(default=4.0)
+    likert_scale = models.FloatField(default=1.0)
     user = models.ForeignKey(User)
     added = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)

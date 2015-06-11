@@ -1,6 +1,7 @@
 import random
 from math import exp
 from math import log
+from math import sqrt
 import argparse
 import numpy as np
 from scipy.optimize import fmin_tnc
@@ -10,8 +11,9 @@ item_mean = 0.0
 item_std = 1.5
 discrim_mean = 1.0
 discrim_std = 1.0
-bias_mean = 4.0
-bias_std = 1.5
+bias_mean = 0.0
+#bias_mean = 4.0
+bias_std = 1.0
 prec_mean = 1.0
 prec_std = 1.0
 
@@ -61,8 +63,11 @@ def ll_combined(x, item_ids, judge_ids, pairwise=[], individual=[]):
     discrim = {i:idx + len(item_val) for idx, i in enumerate(judge_ids)}
     bias = {i:idx + len(item_val) + len(judge_ids) for idx, i in enumerate(judge_ids)}
     precision = {i:idx + len(item_val) + 2*len(judge_ids) for idx, i in enumerate(judge_ids)}
+    likert_mean = x[-1]
+    likert_prec = x[-2]
 
     ll = 0.0
+
     for r in pairwise:
         left = x[item_val[r.left.id]]
         right = x[item_val[r.right.id]]
@@ -78,7 +83,15 @@ def ll_combined(x, item_ids, judge_ids, pairwise=[], individual=[]):
         b = x[bias[l.judge.id]]
         p = x[precision[l.judge.id]]
 
-        ll += (1/2)*log(p) - (p * ((l.value - b - u) * (l.value - b - u)) / 2)
+        #ll += (1/2) * log(p) - (p * ((l.value - likert_mean - b - u) * 
+        #                             (l.value - likert_mean - b - u)) / 2)
+
+        p0 = likert_prec
+        s = 1 / sqrt(p0)
+        ll += (1/2) * log(p0)
+        ll += (1/2) * log(p)
+        ll -= p0 * p * ((l.value - likert_mean - s * (b + u)) *
+                        (l.value - likert_mean - s * (b + u)) / 2)
 
     # Regularization
     # Normal prior on means
@@ -133,8 +146,11 @@ def ll_combined_grad(x, item_ids, judge_ids, pairwise=[], individual=[]):
     discrim = {i:idx + len(item_val) for idx, i in enumerate(judge_ids)}
     bias = {i:idx + len(item_val) + len(judge_ids) for idx, i in enumerate(judge_ids)}
     precision = {i:idx + len(item_val) + 2*len(judge_ids) for idx, i in enumerate(judge_ids)}
+    likert_mean = x[-1]
+    likert_prec = x[-2]
 
     grad = np.array([0.0 for v in x])
+
     for r in pairwise:
         left = x[item_val[r.left.id]]
         right = x[item_val[r.right.id]]
@@ -153,10 +169,20 @@ def ll_combined_grad(x, item_ids, judge_ids, pairwise=[], individual=[]):
         prec = x[precision[l.judge.id]]
         #n = sqrt(1/prec)
 
-        error = (l.value - b - u)
-        grad[item_val[l.item.id]] += prec * error
-        grad[bias[l.judge.id]] += prec * error
-        grad[precision[l.judge.id]] += (1 / (2 * prec)) - (error * error)/2
+        p0 = likert_prec
+        s = 1 / sqrt(p0)
+        error = (l.value - likert_mean - s * (b + u))
+        grad[item_val[l.item.id]] += prec * p0 * error * s
+        grad[bias[l.judge.id]] += prec * p0 * error * s
+        grad[-1] += prec * p0 * error
+        grad[precision[l.judge.id]] += (1 / (2 * prec)) - (p0 / 2) * (error * error)
+        grad[-2] += (1 / (2 * p0)) - (prec / 2) * ((b + u) * s * error + error * error)
+
+        #error = (l.value - likert_mean - b - u)
+        #grad[item_val[l.item.id]] += prec * error
+        #grad[bias[l.judge.id]] += prec * error
+        #grad[-1] += prec * error # likert mean
+        #grad[precision[l.judge.id]] += (1 / (2 * prec)) - (error * error)/2
 
     # Regularization
     # Normal prior on means

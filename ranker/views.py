@@ -88,7 +88,7 @@ def view_project(request, project_id):
         messages.error(request, "Sorry! You do not have permission to view this project.")
         return HttpResponseRedirect(reverse('dashboard'))
 
-    update_model(project_id)
+    update_model.delay(project_id)
 
     judges = Judge.objects.filter(project=project).distinct()
     template = loader.get_template('ranker/view_project.html')

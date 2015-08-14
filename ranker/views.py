@@ -1,6 +1,7 @@
 import random
 import csv
 import numpy as np
+from math import sqrt
 
 from hashlib import sha1
 from scipy.optimize import fmin_l_bfgs_b
@@ -160,7 +161,7 @@ def update_model(project_id):
     precids = {i: idx + len(ids) + 2 * len(jids) for idx, i in enumerate(jids)}
 
     project.likert_mean = result[-1]
-    project.likert_scale = result[-2]
+    project.likert_scale = 1 / sqrt(result[-2])
     project.save()
 
     for item in items:

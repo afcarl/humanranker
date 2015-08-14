@@ -1,5 +1,5 @@
 """
-Django settings for datafitness project.
+Django settings for pairwise project.
 
 For more information on this file, see
 https://docs.djangoproject.com/en/1.7/topics/settings/
@@ -27,6 +27,8 @@ TEMPLATE_DEBUG = True
 
 ALLOWED_HOSTS = []
 
+BROKER_URL = 'django://'
+
 # Application definition
 
 INSTALLED_APPS = (
@@ -36,6 +38,7 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'kombu.transport.django',
     'ranker',
     'django_cleanup',
 )

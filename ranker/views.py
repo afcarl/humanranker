@@ -3,8 +3,7 @@ import csv
 import numpy as np
 
 from hashlib import sha1
-from itertools import combinations
-from scipy.optimize import fmin_tnc
+from scipy.optimize import fmin_l_bfgs_b
 from django.db.models import Q
 from django.http import HttpResponse, HttpResponseRedirect
 from django.template import RequestContext, loader
@@ -148,7 +147,7 @@ def update_model(project_id):
     # bounds on likert-pairwise link parameters (i.e, likert mean)
     bounds += [(0.001, 'inf'), (1.0, 7.0)]
 
-    result = fmin_tnc(ll_combined, x0, 
+    result = fmin_l_bfgs_b(ll_combined, x0, 
                       #approx_grad=True,
                       fprime=ll_combined_grad, 
                       args=(tuple(ids), tuple(jids), ratings, likerts),
@@ -193,12 +192,6 @@ def update_model(project_id):
     # regularization terms
     for i,v in enumerate(d2ll):
         d2ll[i] += len(ids) / (item_std * item_std) 
-
-        #these shouldn't get included in item parameter estimates.
-        #d2ll[i] += (len(discids) / (discrim_std * discrim_std))
-        #d2ll[i] += (len(biasids) / (bias_std * bias_std))
-        #d2ll[i] += (len(precids) / (prec_std * prec_std))
-    #print(d2ll)
 
     std = 1.0 / np.sqrt(d2ll)
     #print(std)

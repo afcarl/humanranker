@@ -1,18 +1,18 @@
-import random
 from math import exp
 from math import log
 from math import sqrt
 import argparse
 import numpy as np
-from scipy.optimize import fmin_tnc
+from scipy.optimize import fmin_l_bfgs_b
 
 # Regularization Parameters
 item_mean = 0.0
-item_std = 1.5
+item_std = 10.0
+
 discrim_mean = 1.0
 discrim_std = 1.0
+
 bias_mean = 0.0
-#bias_mean = 4.0
 bias_std = 1.0
 prec_mean = 1.0
 prec_std = 1.0
@@ -304,15 +304,17 @@ if __name__ == "__main__":
     x0 += [discrim_mean for j in judges]
     x0 += [bias_mean for j in judges]
     x0 += [prec_mean for j in judges]
+    x0 += [1, 4]
     bounds = [('-inf','inf') for i in items]
     bounds += [(0.001,'inf') for j in judges]
     bounds += [('-inf','inf') for j in judges]
     bounds += [(0.001,'inf') for j in judges]
+    bounds += [(0.001, 'inf'), (1.0, 7.0)]
 
     iids = tuple(items)
     jids = tuple(judges)
 
-    result = fmin_tnc(ll_combined, x0, 
+    result = fmin_l_bfgs_b(ll_combined, x0, 
                       fprime=ll_combined_grad, 
                       args=(iids, jids, pairwise, individual),
                       bounds=bounds,
@@ -323,6 +325,11 @@ if __name__ == "__main__":
     bias = {i: idx + len(iids) + len(judges) for idx, i in enumerate(jids)}
     precision = {i: idx + len(iids) + 2 * len(judges) for idx, i in
                  enumerate(jids)}
+    mean = result[-1]
+    scale = result[-2]
+
+    print("MEAN", mean)
+    print("PREC", scale)
 
     for i in items:
         items[i].mean = result[item_val[i]]
@@ -353,10 +360,6 @@ if __name__ == "__main__":
     for i,v in enumerate(d2ll):
         d2ll[i] += len(items) / (item_std * item_std) 
 
-        #these shouldn't get included because they don't impact d2ll[i].
-        #d2ll[i] += (len(judges) / (discrim_std * discrim_std))
-        #d2ll[i] += (len(judges) / (bias_std * bias_std))
-        #d2ll[i] += (len(judges) / (prec_std * prec_std))
     #print(d2ll)
 
     std = 1.0 / np.sqrt(d2ll)

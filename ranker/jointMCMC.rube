@@ -1,0 +1,51 @@
+model  {  
+    ########## PAIRWISE MODEL ###########################
+    for (i in 1:NPRATINGS){
+        logit(pp[i]) <- pjudge.PREC[pjudge[i]] * (trueCreativity[left[i]] - trueCreativity[right[i]]) 
+        prating[i] ~ dbern(pp[i])
+    }
+
+    for (j in 1:NPJUDGES){
+        pjudge.PREC[j] ~ dnorm(1, 1)T(0,)
+    }
+
+    ########## LINEAR LIKERT MODEL ######################
+    for (i in 1:NRATINGS) {
+        mu[i] <- MEAN + (trueCreativity[item[i]] + judge.MEAN[judge[i]]) / sqrt(PREC)
+        rating[i] ~ dnorm(mu[i], PREC * judge.PREC[judge[i]])
+    }
+
+    ######### ORDINAL LIKERT MODEL ###################### 
+    #for (i in 1:NRATINGS){
+    #    mu[i] <- judge.PREC[judge[i]] * (trueCreativity[item[i]] + judge.MEAN[judge[i]])
+    #    
+    #    logit(Q[i,1]) <- alpha[1] - mu[i]
+    #    p[i,1] <- Q[i,1]
+    #    for(j in 2:6){
+    #        logit(Q[i,j]) <- alpha[j] - mu[i]
+    #        p[i,j] <- Q[i,j] - Q[i, j-1]
+    #    }
+    #    p[i,7] <- 1 - Q[i,6]
+    #    rating[i] ~ dcat(p[i,])
+    #}
+    #for (r in 1:6){
+    #    alpha0[r] ~ dnorm(0, 1)
+    #}
+    #alpha[1:6] <- sort(alpha0[1:6])
+
+    for (j in 1:NJUDGES) {
+        judge.MEAN[j] ~ dnorm(0, 1)
+        judge.PREC[j] ~ dnorm(1, 1)T(0,)
+    }
+
+    ########## Priors - SHARED BETWEEN MODELS ########
+
+    for (i in 1:NITEMS){
+        trueCreativity[i] ~ dnorm(0,0.01)
+    }
+
+    MEAN ~ dunif(1,7)
+    PREC ~ dunif(0.001, 10)
+
+}
+

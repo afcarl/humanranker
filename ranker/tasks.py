@@ -1,5 +1,7 @@
-from math import sqrt
+from datetime import datetime
+
 import numpy as np
+from math import sqrt
 from scipy.optimize import fmin_l_bfgs_b
 
 from django.db.models import Q
@@ -22,6 +24,16 @@ from ranker.estimator import prec_mean
 @app.task
 def update_model(project_id):
     project = Project.objects.get(id=project_id)
+    last_likert = Likert.objects.filter(project=project).order_by('-added').first()
+    last_rating = Rating.objects.filter(project=project).order_by('-added').first()
+   
+    if ((not last_likert or project.last_model_estimation > last_likert.added) and
+        (not last_rating or project.last_model_estimation > last_rating.added)):
+        return
+
+    project.last_mode_estimation = datetime.now()
+    project.save()
+
     items = Item.objects.filter(project=project).order_by('id').distinct()
     ids = [item.id for item in items]
     judges = Judge.objects.filter(project=project).order_by('id').distinct()

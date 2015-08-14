@@ -88,7 +88,7 @@ def view_project(request, project_id):
         messages.error(request, "Sorry! You do not have permission to view this project.")
         return HttpResponseRedirect(reverse('dashboard'))
 
-    update_model.delay(project_id)
+    #update_model.delay(project_id)
 
     judges = Judge.objects.filter(project=project).distinct()
     template = loader.get_template('ranker/view_project.html')
@@ -270,7 +270,8 @@ def vote_likert(request, project_id):
                         project=item.project)
         likert.save()
 
-        #update_model(project_id)
+        update_model.delay(project_id)
+
     else:
         messages.error(request, "Error processing your rating. Try again.")
 
@@ -301,7 +302,8 @@ def vote(request, project_id):
                         project=item1.project)
         rating.save()
 
-        #update_model(project_id)
+        update_model.delay(project_id)
+
     else:
         messages.error(request, "Error processing your rating. Try again.")
 

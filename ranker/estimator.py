@@ -1,21 +1,29 @@
+import sys
 from math import exp
 from math import log
 from math import sqrt
 import argparse
 import numpy as np
-from scipy.optimize import fmin_l_bfgs_b
+#from scipy.optimize import minimize
+from scipy.optimize import basinhopping
+from scipy.optimize import check_grad
+#from scipy.optimize import approx_fprime
 
 # Regularization Parameters
 item_mean = 0.0
-item_std = 10.0
+#item_std = 10.0
+item_prec = 0.1
 
 discrim_mean = 1.0
-discrim_std = 1.0
+#discrim_std = 3.0
+discrim_prec = 1.0
 
 bias_mean = 0.0
 bias_std = 1.0
 prec_mean = 1.0
 prec_std = 1.0
+
+max_z = log(1 + sys.float_info.max)
 
 class FakeObject:
     """
@@ -23,24 +31,25 @@ class FakeObject:
     """
     pass
 
-def expz(val):
+def log_one_plus_exp(z):
     """
-    This function computes the exp of a value with the value bounded to
-    (-12,12). This is useful in logistic models where values greater than these
-    bounds have minimial effect on the predictive probabilities, but introduce
-    overflow/underflow errors. 
-    
-    >>> expz(12)
-    162754.79141900392
+    This function returns log(1 + exp(z)) where it rewrites the terms to reduce
+    floating point errors.
+    """
+    if z <= 0:
+        return log(1 + exp(z))
+    else:
+        return log(1 + exp(-z)) + z
 
-    >>> expz(13)
-    162754.79141900392
+def invlogit(z):
     """
-    if val > 12:
-        return exp(12)
-    if val < -12:
-        return exp(-12)
-    return exp(val)
+    This function return 1 / (1 + exp(-z)) where it rewrites the terms to
+    reduce floating point errors.
+    """
+    if z > 0:
+        return 1 / (1 + exp(-z))
+    else:
+        return exp(z) / (1 + exp(z))
 
 def ll_combined(x, item_ids, judge_ids, pairwise=[], individual=[]):
     """
@@ -74,9 +83,10 @@ def ll_combined(x, item_ids, judge_ids, pairwise=[], individual=[]):
         d = x[discrim[r.judge.id]]
 
         y = r.value
+
         z = d * (left - right)
-        p = 1 / (1 + expz(-1 * z))
-        ll += y * log(p) + (1 - y) * log(1 - p)
+        #z = (left - right)
+        ll += y * z - log_one_plus_exp(z)
 
     for l in individual:
         u = x[item_val[l.item.id]]
@@ -99,15 +109,17 @@ def ll_combined(x, item_ids, judge_ids, pairwise=[], individual=[]):
     for i in item_val:
         diff = x[item_val[i]] - item_mean
         item_reg += diff * diff
-    item_reg = (-1.0 / (2 * item_std * item_std)) * item_reg
+    item_reg = -1 * item_prec / 2 * item_reg
+    #item_reg = (-1.0 / (2 * item_std * item_std)) * item_reg
 
     # Normal prior on discriminations
     judge_reg = 0.0
     for i in discrim:
         diff = x[discrim[i]] - discrim_mean
         judge_reg += diff * diff
-    judge_reg = ((-1.0 / (2 * discrim_std * discrim_std))
-                 * judge_reg)
+    judge_reg = -1 * discrim_prec / 2 * judge_reg
+    #judge_reg = ((-1.0 / (2 * discrim_std * discrim_std))
+    #             * judge_reg)
 
     # Normal prior on bias
     bias_reg = 0.0
@@ -149,16 +161,25 @@ def ll_combined_grad(x, item_ids, judge_ids, pairwise=[], individual=[]):
     likert_mean = x[-1]
     likert_prec = x[-2]
 
-    grad = np.array([0.0 for v in x])
+    grad = np.zeros(len(x))
+    #grad = np.array([0.0 for v in x])
 
     for r in pairwise:
         left = x[item_val[r.left.id]]
         right = x[item_val[r.right.id]]
         d = x[discrim[r.judge.id]]
-        y = r.value
-        p = 1.0 / (1.0 + expz(-1 * d * (left-right)))
 
+        y = r.value
+
+        z = d * (left - right)
+        #z = (left - right)
+
+        p = invlogit(z)
         g = y - p 
+
+        #grad[item_val[r.left.id]] += g
+        #grad[item_val[r.right.id]] += -1 * g
+
         grad[item_val[r.left.id]] += d * g
         grad[item_val[r.right.id]] += -1 * d * g
         grad[discrim[r.judge.id]] += (left - right) * g
@@ -189,13 +210,15 @@ def ll_combined_grad(x, item_ids, judge_ids, pairwise=[], individual=[]):
     item_reg = np.array([0.0 for v in x])
     for i in item_val:
         item_reg[item_val[i]] += (x[item_val[i]] - item_mean)
-    item_reg = (-1.0 / (item_std * item_std)) * item_reg
+    item_reg = -1 * item_prec * item_reg
+    #item_reg = (-1.0 / (item_std * item_std)) * item_reg
 
     # Normal prior on discriminations
     judge_reg = np.array([0.0 for v in x])
     for i in discrim:
         judge_reg[discrim[i]] += (x[discrim[i]] - discrim_mean)
-    judge_reg = (-1.0 / (discrim_std * discrim_std)) * judge_reg
+    judge_reg = -1 * discrim_prec * judge_reg
+    #judge_reg = (-1.0 / (discrim_std * discrim_std)) * judge_reg
 
     # Normal prior on bias
     bias_reg = np.array([0.0 for v in x])
@@ -210,6 +233,21 @@ def ll_combined_grad(x, item_ids, judge_ids, pairwise=[], individual=[]):
     prec_reg = (-1.0 / (prec_std * prec_std)) * prec_reg
 
     return -1 * (grad + item_reg + judge_reg + bias_reg + prec_reg)
+
+class BoundedStepper(object):
+    """
+    Add a random displacement of maximum size, stepsize, to the coordinates
+    update x inplace
+    """
+    def __init__(self, bounds, stepsize):
+        self.stepsize = stepsize
+        self.bounds = bounds
+
+    def __call__(self, x):
+        x += np.random.uniform(-self.stepsize, self.stepsize, np.shape(x))
+        for i,v in enumerate(x):
+            x[i] = max(float(self.bounds[i][0]), min(float(self.bounds[i][1]), x[i]))
+        return x
 
 if __name__ == "__main__":
 
@@ -300,25 +338,47 @@ if __name__ == "__main__":
             pairwise.append(new_pair)
 
     # Estimate parameter values
-    x0 = [item_mean for item in items] 
+    #for i in range(10):
+    from random import normalvariate
+    x0 = [normalvariate(item_mean, sqrt(1/item_prec)) for item in items] 
+    #x0 += [normalvariate(discrim_mean, sqrt(1/discrim_prec)) for j in judges]
+    #x0 = [item_mean for item in items] 
     x0 += [discrim_mean for j in judges]
     x0 += [bias_mean for j in judges]
     x0 += [prec_mean for j in judges]
-    x0 += [1, 4]
+    x0 += [0.5, 2]
     bounds = [('-inf','inf') for i in items]
-    bounds += [(0.001,'inf') for j in judges]
+    bounds += [('-inf', 'inf') for j in judges]
     bounds += [('-inf','inf') for j in judges]
     bounds += [(0.001,'inf') for j in judges]
-    bounds += [(0.001, 'inf'), (1.0, 7.0)]
+    bounds += [(0.001, 'inf'), ('-inf', 'inf')]
 
     iids = tuple(items)
     jids = tuple(judges)
 
-    result = fmin_l_bfgs_b(ll_combined, x0, 
-                      fprime=ll_combined_grad, 
-                      args=(iids, jids, pairwise, individual),
-                      bounds=bounds,
-                      disp=False)[0]
+    # Test gradient
+    #print(check_grad(ll_combined, ll_combined_grad, x0, iids, jids,
+    #                 pairwise, individual))
+
+    # OPTIMAL SEARCH
+    stepper = BoundedStepper(bounds, 20)
+    result = basinhopping(ll_combined, x0, disp=True, T=15,
+                          niter=10000, niter_success=3, take_step=stepper,
+                          minimizer_kwargs={'method': 'TNC', 'args': (iids,
+                                                                        jids,
+                                                                        pairwise,
+                                                                        individual),
+                                            'jac': ll_combined_grad, 'bounds':
+                                            bounds, 'options': {
+                                                              'maxiter': 10000},
+                                           })['x']
+    #print(result)
+
+    # LOCAL SEARCH
+    #result = minimize(ll_combined, x0, args=(iids, jids, pairwise, individual),
+    #                  jac=ll_combined_grad, method="SLSQP", bounds=bounds,
+    #                  options={'factr': 1, 'maxiter': 10000, 'disp': True})['x']
+
 
     item_val = {i: idx for idx, i in enumerate(iids)}
     discrim = {i: idx + len(iids) for idx, i in enumerate(jids)}
@@ -341,6 +401,11 @@ if __name__ == "__main__":
         judges[j].precision = result[precision[j]]
         #print(j, judges[j].discrimination)
 
+        #print('Judge %i Discrim: %0.2f' % (j, judges[j].discrimination))
+        #print('Judge %i Bias: %0.2f' % (j, judges[j].bias))
+        #print('Judge %i Precision: %0.2f' % (j, judges[j].precision))
+        #print()
+
     # compute the stds
     d2ll = np.array([0.0 for item in items])
 
@@ -348,7 +413,7 @@ if __name__ == "__main__":
         d = r.judge.discrimination
         left = r.left.mean
         right = r.right.mean
-        p = 1.0 / (1.0 + expz(-1 * d * (left-right)))
+        p = invlogit(d * (left - right))
         q = 1 - p
         d2ll[item_val[r.left.id]] += d * d * p * q
         d2ll[item_val[r.right.id]] += d * d * p * q
@@ -358,7 +423,7 @@ if __name__ == "__main__":
 
     # regularization terms
     for i,v in enumerate(d2ll):
-        d2ll[i] += len(items) / (item_std * item_std) 
+        d2ll[i] += len(items) * item_prec
 
     #print(d2ll)
 

@@ -1,8 +1,7 @@
 from datetime import datetime
 
 import numpy as np
-from math import sqrt
-from scipy.optimize import fmin_l_bfgs_b
+from scipy.optimize import basinhopping
 
 from django.db.models import Q
 
@@ -14,12 +13,9 @@ from ranker.models import Rating
 from ranker.models import Likert
 from ranker.estimator import ll_combined
 from ranker.estimator import ll_combined_grad
-from ranker.estimator import expz
-from ranker.estimator import item_mean
-from ranker.estimator import item_std
-from ranker.estimator import discrim_mean
-from ranker.estimator import bias_mean
-from ranker.estimator import prec_mean
+from ranker.estimator import item_prec
+from ranker.estimator import BoundedStepper
+from ranker.estimator import invlogit
 
 @app.task
 def update_model(project_id):
@@ -45,13 +41,13 @@ def update_model(project_id):
     #x0 += [judge.discrimination for judge in judges]
     #x0 += [judge.bias for judge in judges]
     #x0 += [judge.precision for judge in judges]
-    x0 = [item_mean for item in items] 
-    x0 += [discrim_mean for judge in judges]
-    x0 += [bias_mean for judge in judges]
-    x0 += [prec_mean for judge in judges]
+    x0 = [item.mean for item in items] 
+    x0 += [judge.discrimination for judge in judges]
+    x0 += [judge.bias for judge in judges]
+    x0 += [judge.precision for judge in judges]
 
     # The parameters linking likert to pairwise (i.e., overall likert mean)
-    x0 += [1.0, 4.0]
+    x0 += [project.likert_mean, project.likert_scale]
 
     #print(x0)
     #from scipy.optimize import check_grad, approx_fprime
@@ -63,19 +59,27 @@ def update_model(project_id):
     #print(ll_combined_grad(x0,  tuple(ids), tuple(jids), ratings, likerts)) 
 
     bounds = [('-inf','inf') for v in ids]
-    bounds += [(0.001,'inf') for v in jids]
+    bounds += [('-inf','inf') for v in jids]
     bounds += [('-inf','inf') for v in jids]
     bounds += [(0.001,'inf') for v in jids]
+    bounds += [(0.001, 'inf'), ('-inf', 'inf')]
 
-    # bounds on likert-pairwise link parameters (i.e, likert mean)
-    bounds += [(0.001, 'inf'), (1.0, 7.0)]
-
-    result = fmin_l_bfgs_b(ll_combined, x0, 
-                      #approx_grad=True,
-                      fprime=ll_combined_grad, 
-                      args=(tuple(ids), tuple(jids), ratings, likerts),
-                      bounds=bounds,
-                      disp=False)[0]
+    stepper = BoundedStepper(bounds, 20)
+    result = basinhopping(ll_combined, x0, disp=False, T=15, 
+                          niter=10000, niter_success=3, take_step=stepper,
+                          minimizer_kwargs={'method': 'TNC', 'args':
+                                            (tuple(ids), tuple(jids), ratings,
+                                             likerts),
+                                            'jac': ll_combined_grad, 'bounds':
+                                            bounds, 'options': {
+                                                              'maxiter': 10000},
+                                           })['x']
+    #result = fmin_l_bfgs_b(ll_combined, x0, 
+    #                  #approx_grad=True,
+    #                  fprime=ll_combined_grad, 
+    #                  args=(tuple(ids), tuple(jids), ratings, likerts),
+    #                  bounds=bounds,
+    #                  disp=False)[0]
 
     ids = {i: idx for idx, i in enumerate(ids)}
     discids = {i: idx + len(ids) for idx, i in enumerate(jids)}
@@ -83,7 +87,7 @@ def update_model(project_id):
     precids = {i: idx + len(ids) + 2 * len(jids) for idx, i in enumerate(jids)}
 
     project.likert_mean = result[-1]
-    project.likert_scale = 1 / sqrt(result[-2])
+    project.likert_scale = result[-2]
     project.save()
 
     for item in items:
@@ -104,7 +108,7 @@ def update_model(project_id):
         d = r.judge.discrimination
         left = r.left.mean
         right = r.right.mean
-        p = 1.0 / (1.0 + expz(-1 * d * (left-right)))
+        p = invlogit(d * (left - right))
         q = 1 - p
         d2ll[ids[r.left.id]] += d * d * p * q
         d2ll[ids[r.right.id]] += d * d * p * q
@@ -114,7 +118,7 @@ def update_model(project_id):
 
     # regularization terms
     for i,v in enumerate(d2ll):
-        d2ll[i] += len(ids) / (item_std * item_std) 
+        d2ll[i] += len(ids) * item_prec
 
     std = 1.0 / np.sqrt(d2ll)
     #print(std)

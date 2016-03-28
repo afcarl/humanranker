@@ -2,6 +2,7 @@ from datetime import datetime
 
 import numpy as np
 from scipy.optimize import basinhopping
+from scipy.optimize import fmin_l_bfgs_b
 
 from django.db.models import Q
 
@@ -64,22 +65,22 @@ def update_model(project_id):
     bounds += [(0.001,'inf') for v in jids]
     bounds += [(0.001, 'inf'), ('-inf', 'inf')]
 
-    stepper = BoundedStepper(bounds, 20)
-    result = basinhopping(ll_combined, x0, disp=False, T=15, 
-                          niter=10000, niter_success=3, take_step=stepper,
-                          minimizer_kwargs={'method': 'TNC', 'args':
-                                            (tuple(ids), tuple(jids), ratings,
-                                             likerts),
-                                            'jac': ll_combined_grad, 'bounds':
-                                            bounds, 'options': {
-                                                              'maxiter': 10000},
-                                           })['x']
-    #result = fmin_l_bfgs_b(ll_combined, x0, 
-    #                  #approx_grad=True,
-    #                  fprime=ll_combined_grad, 
-    #                  args=(tuple(ids), tuple(jids), ratings, likerts),
-    #                  bounds=bounds,
-    #                  disp=False)[0]
+    #stepper = BoundedStepper(bounds, 20)
+    #result = basinhopping(ll_combined, x0, disp=False, T=15, 
+    #                      niter=10000, niter_success=3, take_step=stepper,
+    #                      minimizer_kwargs={'method': 'TNC', 'args':
+    #                                        (tuple(ids), tuple(jids), ratings,
+    #                                         likerts),
+    #                                        'jac': ll_combined_grad, 'bounds':
+    #                                        bounds, 'options': {
+    #                                                          'maxiter': 10000},
+    #                                       })['x']
+    result = fmin_l_bfgs_b(ll_combined, x0, 
+                      #approx_grad=True,
+                      fprime=ll_combined_grad, 
+                      args=(tuple(ids), tuple(jids), ratings, likerts),
+                      bounds=bounds,
+                      disp=False)[0]
 
     ids = {i: idx for idx, i in enumerate(ids)}
     discids = {i: idx + len(ids) for idx, i in enumerate(jids)}

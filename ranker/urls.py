@@ -1,12 +1,13 @@
+from django.contrib.auth import views as auth_views
 from django.conf.urls import patterns, url
 from ranker import views
 
-urlpatterns = patterns('',
+urlpatterns = [
     url(r'^$', views.index, name='index'),
     url(r'^register/$', views.register, name='register'),
-    url(r'^login/$', 'django.contrib.auth.views.login',
+    url(r'^login/$', auth_views.login,
         {'template_name': 'ranker/login.html'}, name='login'),
-    url(r'^logout/$', 'django.contrib.auth.views.logout',
+    url(r'^logout/$', auth_views.logout,
         {'template_name': 'ranker/logout.html',
          'next_page': 'index'}, name='logout'),
     url(r'^dashboard/$', views.dashboard, name='dashboard'),
@@ -37,5 +38,5 @@ urlpatterns = patterns('',
         name='delete_item'),
     url(r'^view_item/(?P<item_id>\d+)$', views.view_item,
         name='view_item'),
-)
+]
 

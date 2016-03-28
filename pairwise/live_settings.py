@@ -21,9 +21,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 SECRET_KEY = 'q1#=30283oslkjdflkjKLJLK32lj2ljj2ljsoiu*)(K1)uk99@$&#pim5+spsfo0op'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
-
-TEMPLATE_DEBUG = True
+DEBUG = True
 
 ALLOWED_HOSTS = ['humanranker.christopia.net']
 
@@ -55,15 +53,44 @@ MIDDLEWARE_CLASSES = (
 
 ROOT_URLCONF = 'pairwise.urls'
 
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+
 WSGI_APPLICATION = 'pairwise.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/1.7/ref/settings/#databases
 
+#DATABASES = {
+#    'default': {
+#        'ENGINE': 'django.db.backends.sqlite3',
+#        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+#	'OPTIONS': {
+#		'timeout': 20
+#	}
+#    }
+#}
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'ENGINE': 'django.db.backends.mysql',
+	'NAME': 'humanranker_db',
+	'USER': 'hr_user',
+	'PASSWORD': '230jklD8',
+	'HOST': 'localhost',
+	'PORT': '5432'
     }
 }
 

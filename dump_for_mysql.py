@@ -7,6 +7,7 @@ def this_line_is_useless(line):
     useless_es = [
         'BEGIN TRANSACTION',
         'COMMIT',
+        'AUTOINCREMENT',
         'sqlite_sequence',
         'CREATE UNIQUE INDEX',
         'PRAGMA foreign_keys=OFF',
@@ -19,6 +20,8 @@ def has_primary_key(line):
     return bool(re.search(r'PRIMARY KEY', line))
 
 searching_for_end = False
+
+print("SET FOREIGN_KEY_CHECKS=0;")
 for line in fileinput.input():
     if this_line_is_useless(line):
         continue
@@ -53,9 +56,9 @@ for line in fileinput.input():
         if re.search(r"integer(?:\s+\w+)*\s*PRIMARY KEY(?:\s+\w+)*\s*,", line):
             line = line.replace("PRIMARY KEY", "PRIMARY KEY AUTO_INCREMENT")
         # replace " and ' with ` because mysql doesn't like quotes in CREATE commands
-        if line.find('DEFAULT') == -1:
+        if "INSERT" not in line and line.find('DEFAULT') == -1:
             line = line.replace(r'"', r'`').replace(r"'", r'`')
-        else:
+        elif "INSERT" not in line:
             parts = line.split('DEFAULT')
             parts[0] = parts[0].replace(r'"', r'`').replace(r"'", r'`')
             line = 'DEFAULT'.join(parts)
@@ -70,4 +73,6 @@ for line in fileinput.input():
     if re.match(r"CREATE INDEX", line):
         line = re.sub('"', '`', line)
 
-    print line,
+    print(line, end="")
+
+print("SET FOREIGN_KEY_CHECKS=1;")
